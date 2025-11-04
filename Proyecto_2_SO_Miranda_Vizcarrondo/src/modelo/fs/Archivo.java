@@ -16,15 +16,18 @@ package modelo.fs;
 
 public class Archivo extends NodoFS {
 
-    // Por ahora solo guardamos el tamaño en bloques lógicos
+    private static int contadorIds = 1;
+
+    private final int id;
     private int tamanoEnBloques;
 
-    // Más adelante: índice del primer bloque en el disco
+    // índice del primer bloque en el disco (asignación encadenada)
     private int primerBloque = -1;
 
     public Archivo(String nombre, Directorio padre, int tamanoEnBloques) {
         super(nombre, padre);
         this.tamanoEnBloques = tamanoEnBloques;
+        this.id = contadorIds++;
     }
 
     @Override
@@ -47,5 +50,8 @@ public class Archivo extends NodoFS {
     public void setPrimerBloque(int primerBloque) {
         this.primerBloque = primerBloque;
     }
-}
 
+    public int getId() {
+        return id;
+    }
+}

@@ -16,7 +16,8 @@ import modelo.fs.Archivo;
 public class MainPruebasFS {
 
     public static void main(String[] args) {
-        SistemaArchivos sa = new SistemaArchivos();
+        // Creamos un sistema de archivos con 20 bloques de disco
+        SistemaArchivos sa = new SistemaArchivos(20);
 
         Directorio root = sa.getRaiz();
         Directorio docs = sa.crearDirectorio(root, "Documentos");
@@ -26,7 +27,22 @@ public class MainPruebasFS {
         Archivo a2 = sa.crearArchivo(docs, "tarea2.txt", 5);
         Archivo img1 = sa.crearArchivo(img, "foto1.jpg", 10);
 
+        System.out.println("=== Estructura del sistema de archivos ===");
         sa.imprimirEstructura();
+
+        System.out.println("\n=== Estado del disco tras crear archivos ===");
+        sa.imprimirEstadoDisco();
+
+        // Ahora borramos un archivo y vemos cómo cambia el disco
+        System.out.println("\nEliminando archivo tarea1.txt ...");
+        sa.eliminarArchivo(docs, a1);
+
+        System.out.println("\n=== Estructura del sistema de archivos ===");
+        sa.imprimirEstructura();
+
+        System.out.println("\n=== Estado del disco tras eliminar tarea1.txt ===");
+        sa.imprimirEstadoDisco();
     }
 }
+
 
