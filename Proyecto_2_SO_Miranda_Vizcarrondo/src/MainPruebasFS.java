@@ -30,19 +30,21 @@ public class MainPruebasFS {
         System.out.println("=== Estructura del sistema de archivos ===");
         sa.imprimirEstructura();
 
+        sa.imprimirTablaAsignacion();
+
         System.out.println("\n=== Estado del disco tras crear archivos ===");
         sa.imprimirEstadoDisco();
 
-        // Ahora borramos un archivo y vemos cómo cambia el disco
+        // Ahora borramos un archivo y vemos cómo cambian las cosas
         System.out.println("\nEliminando archivo tarea1.txt ...");
         sa.eliminarArchivo(docs, a1);
 
         System.out.println("\n=== Estructura del sistema de archivos ===");
         sa.imprimirEstructura();
 
+        sa.imprimirTablaAsignacion();
+
         System.out.println("\n=== Estado del disco tras eliminar tarea1.txt ===");
         sa.imprimirEstadoDisco();
     }
 }
-
-

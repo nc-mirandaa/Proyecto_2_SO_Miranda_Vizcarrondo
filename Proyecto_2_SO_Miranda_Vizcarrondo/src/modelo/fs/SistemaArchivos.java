@@ -21,10 +21,14 @@ public class SistemaArchivos {
     private Directorio raiz;
     private Disco disco;
 
+    // Tabla de asignación de archivos
+    private ListaEnlazada<EntradaTablaAsignacion> tablaAsignacion;
+
     public SistemaArchivos(int cantidadBloquesDisco) {
         // La raíz se llamará "root"
         this.raiz = new Directorio("root", null);
         this.disco = new Disco(cantidadBloquesDisco);
+        this.tablaAsignacion = new ListaEnlazada<>();
     }
 
     public Directorio getRaiz() {
@@ -33,6 +37,10 @@ public class SistemaArchivos {
 
     public Disco getDisco() {
         return disco;
+    }
+
+    public ListaEnlazada<EntradaTablaAsignacion> getTablaAsignacion() {
+        return tablaAsignacion;
     }
 
     /**
@@ -49,7 +57,7 @@ public class SistemaArchivos {
 
     /**
      * Crea un archivo dentro de un directorio padre dado.
-     * Además, intenta asignar bloques en el disco.
+     * Además, intenta asignar bloques en el disco y actualiza la tabla de asignación.
      * @return el archivo creado, o null si no hubo espacio en el disco.
      */
     public Archivo crearArchivo(Directorio padre, String nombre, int tamanoEnBloques) {
@@ -67,12 +75,19 @@ public class SistemaArchivos {
         Archivo archivo = new Archivo(nombre, padre, tamanoEnBloques);
         archivo.setPrimerBloque(primerBloque);
         padre.agregarHijo(archivo);
+
+        // Agregar entrada en la tabla de asignación
+        EntradaTablaAsignacion entrada =
+                new EntradaTablaAsignacion(archivo.getId(), archivo.getNombre(),
+                        archivo.getTamanoEnBloques(), archivo.getPrimerBloque());
+        tablaAsignacion.agregar(entrada);
+
         return archivo;
     }
 
     /**
      * Elimina un archivo.
-     * Libera los bloques del disco asociados a él.
+     * Libera los bloques del disco asociados a él y actualiza la tabla de asignación.
      */
     public boolean eliminarArchivo(Directorio padre, Archivo archivo) {
         if (padre == null || archivo == null) {
@@ -83,8 +98,28 @@ public class SistemaArchivos {
         if (primerBloque != Bloque.NULO) {
             disco.liberarCadenaBloques(primerBloque);
         }
+
+        // Eliminar de la tabla de asignación
+        eliminarEntradaTablaPorIdArchivo(archivo.getId());
+
         // Eliminar del directorio
         return padre.eliminarHijo(archivo);
+    }
+
+    /**
+     * Elimina la entrada en la tabla de asignación asociada a un archivo.
+     */
+    private void eliminarEntradaTablaPorIdArchivo(int idArchivo) {
+        final EntradaTablaAsignacion[] aEliminar = { null };
+        tablaAsignacion.forEach(ent -> {
+            if (ent.getIdArchivo() == idArchivo) {
+                aEliminar[0] = ent;
+            }
+        });
+
+        if (aEliminar[0] != null) {
+            tablaAsignacion.eliminar(aEliminar[0]);
+        }
     }
 
     /**
@@ -107,7 +142,7 @@ public class SistemaArchivos {
                 Archivo archivo = (Archivo) hijo;
                 System.out.println("[FILE] " + archivo.getNombre() +
                         " (" + archivo.getTamanoEnBloques() + " bloques, primerBloque=" +
-                        archivo.getPrimerBloque() + ")");
+                        archivo.getPrimerBloque() + ", id=" + archivo.getId() + ")");
             }
         });
     }
@@ -130,5 +165,22 @@ public class SistemaArchivos {
         System.out.println();
         System.out.println("Bloques libres: " + disco.contarBloquesLibres() +
                 " de " + disco.getCantidadBloques());
+    }
+
+    /**
+     * Imprime la tabla de asignación de archivos en consola.
+     * Luego esta misma info la mostraremos en un JTable.
+     */
+    public void imprimirTablaAsignacion() {
+        System.out.println("\n=== Tabla de asignación de archivos ===");
+        System.out.println("ID\tNombre\t\tBloques\tPrimerBloque");
+        tablaAsignacion.forEach(ent -> {
+            System.out.println(
+                    ent.getIdArchivo() + "\t" +
+                    ent.getNombreArchivo() + "\t\t" +
+                    ent.getTamanoEnBloques() + "\t" +
+                    ent.getPrimerBloque()
+            );
+        });
     }
 }
