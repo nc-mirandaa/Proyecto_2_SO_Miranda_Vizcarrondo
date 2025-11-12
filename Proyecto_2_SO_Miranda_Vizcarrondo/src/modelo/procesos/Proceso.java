@@ -17,8 +17,11 @@ public class Proceso {
     private EstadoProceso estado;
     private TipoOperacionFS tipoOperacion;
 
-    private String rutaObjetivo;  // p.ej. /root/Documentos/a.txt
-    private int tamanoEnBloques;  // solo aplica para crear archivo
+    private String rutaObjetivo;   // p.ej. /root/Documentos/a.txt
+    private int tamanoEnBloques;   // solo aplica para crear archivo
+
+    // 🔹 Campo agregado para operaciones de renombrado
+    private String nuevoNombre;
 
     public Proceso(TipoOperacionFS tipoOperacion, String rutaObjetivo, int tamanoEnBloques) {
         this.id = contadorIds++;
@@ -27,6 +30,8 @@ public class Proceso {
         this.rutaObjetivo = rutaObjetivo;
         this.tamanoEnBloques = tamanoEnBloques;
     }
+
+    // ===== Getters y Setters =====
 
     public int getId() {
         return id;
@@ -52,9 +57,19 @@ public class Proceso {
         return tamanoEnBloques;
     }
 
+    // 🔹 Nuevos métodos para manejar el nuevo nombre en RENOMBRAR
+    public String getNuevoNombre() {
+        return nuevoNombre;
+    }
+
+    public void setNuevoNombre(String nuevoNombre) {
+        this.nuevoNombre = nuevoNombre;
+    }
+
     @Override
     public String toString() {
-        return "P" + id + " [" + tipoOperacion + ", " + estado + ", " + rutaObjetivo + "]";
+        return "P" + id + " [" + tipoOperacion + ", " + estado + ", " + rutaObjetivo +
+                (nuevoNombre != null ? " -> " + nuevoNombre : "") + "]";
     }
 }
 

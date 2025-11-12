@@ -4,22 +4,13 @@
  */
 package control;
 
-import modelo.fs.SistemaArchivos;
-import modelo.fs.Directorio;
-import modelo.fs.Archivo;
-import modelo.fs.NodoFS;
+import modelo.fs.*;
 import modelo.procesos.*;
-
-/**
- *
- * @author Nathaly
- */
 
 /**
  * Orquesta procesos, solicitudes de E/S, planificación de disco
  * y operaciones sobre el Sistema de Archivos.
  */
-
 public class GestorSistema {
 
     private SistemaArchivos sistemaArchivos;
@@ -28,12 +19,19 @@ public class GestorSistema {
     private PlanificadorDisco planificador;
     private int posicionCabezal;
 
+    private RolUsuario rolActual = RolUsuario.ADMIN; // por defecto admin
+
     public GestorSistema(int bloquesDisco) {
         this.sistemaArchivos = new SistemaArchivos(bloquesDisco);
         this.colaProcesos = new ColaProcesos();
         this.colaES = new ColaSolicitudesES();
-        this.planificador = new PlanificadorFIFO(); // de momento FIFO
+        this.planificador = new PlanificadorFIFO();
         this.posicionCabezal = 0;
+    }
+
+    // Permitir reemplazar el FS (para cargar desde persistencia)
+    public void setSistemaArchivos(SistemaArchivos fs) {
+        this.sistemaArchivos = fs;
     }
 
     public SistemaArchivos getSistemaArchivos() {
@@ -44,119 +42,106 @@ public class GestorSistema {
         this.planificador = planificador;
     }
 
+    public void setRolActual(RolUsuario rol) {
+        this.rolActual = rol;
+    }
+
+    public RolUsuario getRolActual() {
+        return rolActual;
+    }
+
     // =========================================================
-    // API de alto nivel: aquí "el usuario" pide operaciones
+    // API de alto nivel: solicitudes
     // =========================================================
 
-    /**
-     * Crea un proceso para CREAR_ARCHIVO y lo mete a la cola.
-     * Ejemplo ruta: "/root/Documentos/tarea1.txt"
-     */
     public void solicitarCrearArchivo(String rutaCompleta, int tamanoEnBloques) {
+        if (!tienePermiso()) return;
         Proceso p = new Proceso(TipoOperacionFS.CREAR_ARCHIVO, rutaCompleta, tamanoEnBloques);
-        p.setEstado(EstadoProceso.NUEVO);
         colaProcesos.encolar(p);
     }
 
-    /**
-     * Crea un proceso para ELIMINAR_ARCHIVO y lo mete a la cola.
-     */
     public void solicitarEliminarArchivo(String rutaCompleta) {
+        if (!tienePermiso()) return;
         Proceso p = new Proceso(TipoOperacionFS.ELIMINAR_ARCHIVO, rutaCompleta, 0);
-        p.setEstado(EstadoProceso.NUEVO);
         colaProcesos.encolar(p);
     }
 
-    // Más adelante: CREAR_DIRECTORIO, ELIMINAR_DIRECTORIO, RENOMBRAR...
+    public void solicitarCrearDirectorio(String rutaCompleta) {
+        if (!tienePermiso()) return;
+        Proceso p = new Proceso(TipoOperacionFS.CREAR_DIRECTORIO, rutaCompleta, 0);
+        colaProcesos.encolar(p);
+    }
+
+    public void solicitarEliminarDirectorio(String rutaCompleta) {
+        if (!tienePermiso()) return;
+        Proceso p = new Proceso(TipoOperacionFS.ELIMINAR_DIRECTORIO, rutaCompleta, 0);
+        colaProcesos.encolar(p);
+    }
+
+    public void solicitarRenombrar(String rutaCompleta, String nuevoNombre) {
+        if (!tienePermiso()) return;
+        Proceso p = new Proceso(TipoOperacionFS.RENOMBRAR, rutaCompleta, 0);
+        p.setNuevoNombre(nuevoNombre);
+        colaProcesos.encolar(p);
+    }
+
+    private boolean tienePermiso() {
+        if (rolActual != RolUsuario.ADMIN) {
+            System.out.println("❌ Permiso denegado. Solo el ADMIN puede realizar esta operación.");
+            return false;
+        }
+        return true;
+    }
 
     // =========================================================
-    // Simulación de un "paso" del sistema
+    // Ejecución de operaciones simuladas
     // =========================================================
 
-    /**
-     * Simula un paso:
-     * - Saca un proceso de la cola.
-     * - Genera solicitud de E/S.
-     * - Planificador elige cuál atender.
-     * - Ejecuta la operación sobre el FS.
-     */
     public void ejecutarPaso() {
         if (colaProcesos.estaVacia()) {
-            System.out.println("No hay procesos en la cola.");
+            System.out.println("No hay procesos pendientes.");
             return;
         }
 
         Proceso p = colaProcesos.desencolar();
-        if (p == null) return;
-
         System.out.println("\n=== Ejecutando " + p + " ===");
 
-        p.setEstado(EstadoProceso.LISTO);
-
-        // 1) Generar una solicitud de E/S (simplificada)
-        // Luego, si quieres, aquí puedes hacer algo más realista
-        int posicionObjetivo = 0; // por ahora fijo
-        SolicitudES sol = new SolicitudES(p, posicionObjetivo);
+        SolicitudES sol = new SolicitudES(p, 0);
         colaES.encolar(sol);
 
-        // 2) Planificador elige la siguiente solicitud
         SolicitudES siguiente = planificador.seleccionarSiguiente(colaES, posicionCabezal);
-        if (siguiente == null) {
-            System.out.println("No hay solicitudes de E/S.");
-            return;
-        }
+        if (siguiente == null) return;
 
-        System.out.println("Planificador seleccionó: " + siguiente);
-        p.setEstado(EstadoProceso.EJECUTANDO);
-
-        // Movemos el "cabezal" virtual
         posicionCabezal = siguiente.getPosicion();
-
-        // 3) Ejecutar operación de FS asociada al proceso
         ejecutarOperacionFS(p);
-
-        p.setEstado(EstadoProceso.TERMINADO);
-        System.out.println("Proceso " + p.getId() + " TERMINADO.");
     }
-
-    // =========================================================
-    // Ejecución de las operaciones de FS
-    // =========================================================
 
     private void ejecutarOperacionFS(Proceso p) {
         switch (p.getTipoOperacion()) {
-            case CREAR_ARCHIVO:
-                ejecutarCrearArchivo(p);
-                break;
-            case ELIMINAR_ARCHIVO:
-                ejecutarEliminarArchivo(p);
-                break;
-            default:
-                System.out.println("Operación no implementada aún: " + p.getTipoOperacion());
+            case CREAR_ARCHIVO -> ejecutarCrearArchivo(p);
+            case ELIMINAR_ARCHIVO -> ejecutarEliminarArchivo(p);
+            case CREAR_DIRECTORIO -> ejecutarCrearDirectorio(p);
+            case ELIMINAR_DIRECTORIO -> ejecutarEliminarDirectorio(p);
+            case RENOMBRAR -> ejecutarRenombrar(p);
+            default -> System.out.println("Operación no implementada: " + p.getTipoOperacion());
         }
     }
 
     private void ejecutarCrearArchivo(Proceso p) {
         String ruta = p.getRutaObjetivo();
         int tamBloques = p.getTamanoEnBloques();
-
         String rutaDir = obtenerRutaDirectorio(ruta);
         String nombreArchivo = obtenerNombreFinal(ruta);
 
         Directorio dirPadre = buscarDirectorioPorRuta(rutaDir);
         if (dirPadre == null) {
-            System.out.println("Directorio padre no encontrado para ruta: " + rutaDir);
+            System.out.println("Directorio padre no encontrado.");
             return;
         }
 
         Archivo archivo = sistemaArchivos.crearArchivo(dirPadre, nombreArchivo, tamBloques);
-        if (archivo == null) {
-            System.out.println("No se pudo crear el archivo (sin espacio en disco).");
-        } else {
-            System.out.println("Archivo creado: " + archivo.getNombre() +
-                    " en " + dirPadre.getRutaCompleta() +
-                    " (primerBloque=" + archivo.getPrimerBloque() + ")");
-        }
+        if (archivo != null)
+            System.out.println("Archivo creado correctamente.");
     }
 
     private void ejecutarEliminarArchivo(Proceso p) {
@@ -165,55 +150,87 @@ public class GestorSistema {
         String nombreArchivo = obtenerNombreFinal(ruta);
 
         Directorio dirPadre = buscarDirectorioPorRuta(rutaDir);
-        if (dirPadre == null) {
-            System.out.println("Directorio padre no encontrado para ruta: " + rutaDir);
-            return;
-        }
+        if (dirPadre == null) return;
 
         NodoFS nodo = dirPadre.buscarHijoPorNombre(nombreArchivo);
         if (nodo == null || nodo.esDirectorio()) {
-            System.out.println("Archivo no encontrado o es un directorio: " + nombreArchivo);
+            System.out.println("Archivo no encontrado o es directorio.");
             return;
         }
 
-        Archivo archivo = (Archivo) nodo;
-        boolean ok = sistemaArchivos.eliminarArchivo(dirPadre, archivo);
-        System.out.println(ok
-                ? "Archivo eliminado: " + ruta
-                : "No se pudo eliminar el archivo: " + ruta);
+        sistemaArchivos.eliminarArchivo(dirPadre, (Archivo) nodo);
+        System.out.println("Archivo eliminado correctamente.");
+    }
+
+    private void ejecutarCrearDirectorio(Proceso p) {
+        String ruta = p.getRutaObjetivo();
+        String rutaPadre = obtenerRutaDirectorio(ruta);
+        String nombreDir = obtenerNombreFinal(ruta);
+
+        Directorio dirPadre = buscarDirectorioPorRuta(rutaPadre);
+        if (dirPadre == null) {
+            System.out.println("Directorio padre no encontrado.");
+            return;
+        }
+
+        sistemaArchivos.crearDirectorio(dirPadre, nombreDir);
+        System.out.println("Directorio creado correctamente.");
+    }
+
+    private void ejecutarEliminarDirectorio(Proceso p) {
+        String ruta = p.getRutaObjetivo();
+        String rutaPadre = obtenerRutaDirectorio(ruta);
+        String nombreDir = obtenerNombreFinal(ruta);
+
+        Directorio dirPadre = buscarDirectorioPorRuta(rutaPadre);
+        if (dirPadre == null) return;
+
+        NodoFS nodo = dirPadre.buscarHijoPorNombre(nombreDir);
+        if (nodo == null || !nodo.esDirectorio()) {
+            System.out.println("Directorio no encontrado.");
+            return;
+        }
+
+        sistemaArchivos.eliminarDirectorioRecursivo(dirPadre, (Directorio) nodo);
+        System.out.println("Directorio eliminado recursivamente.");
+    }
+
+    private void ejecutarRenombrar(Proceso p) {
+        String ruta = p.getRutaObjetivo();
+        String nuevoNombre = p.getNuevoNombre();
+        String rutaPadre = obtenerRutaDirectorio(ruta);
+        String nombreViejo = obtenerNombreFinal(ruta);
+
+        Directorio dirPadre = buscarDirectorioPorRuta(rutaPadre);
+        if (dirPadre == null) return;
+
+        NodoFS nodo = dirPadre.buscarHijoPorNombre(nombreViejo);
+        if (nodo == null) {
+            System.out.println("Elemento no encontrado.");
+            return;
+        }
+
+        sistemaArchivos.renombrarNodo(nodo, nuevoNombre);
+        System.out.println("Elemento renombrado correctamente.");
     }
 
     // =========================================================
-    // Utilidades para manejar rutas tipo "/root/Documentos/a.txt"
+    // Utilidades de ruta
     // =========================================================
-
-    /**
-     * Busca un directorio por ruta absoluta, p.ej. "/root/Documentos/Sub".
-     */
     private Directorio buscarDirectorioPorRuta(String ruta) {
         if (ruta == null || ruta.isEmpty() || "/".equals(ruta)) {
             return sistemaArchivos.getRaiz();
         }
 
-        String limpia = ruta.trim();
-        if (limpia.startsWith("/")) {
-            limpia = limpia.substring(1);
-        }
-
+        String limpia = ruta.startsWith("/") ? ruta.substring(1) : ruta;
         String[] partes = limpia.split("/");
 
         Directorio actual = sistemaArchivos.getRaiz();
-        int i = 0;
-        if (partes.length > 0 && partes[0].equals(actual.getNombre())) {
-            i = 1; // saltamos "root"
-        }
+        int i = partes[0].equals(actual.getNombre()) ? 1 : 0;
 
         for (; i < partes.length; i++) {
-            String nombreDir = partes[i];
-            NodoFS hijo = actual.buscarHijoPorNombre(nombreDir);
-            if (hijo == null || !hijo.esDirectorio()) {
-                return null;
-            }
+            NodoFS hijo = actual.buscarHijoPorNombre(partes[i]);
+            if (hijo == null || !hijo.esDirectorio()) return null;
             actual = (Directorio) hijo;
         }
         return actual;
@@ -221,17 +238,12 @@ public class GestorSistema {
 
     private String obtenerRutaDirectorio(String rutaCompleta) {
         int idx = rutaCompleta.lastIndexOf('/');
-        if (idx <= 0) {
-            return "/root";
-        }
+        if (idx <= 0) return "/root";
         return rutaCompleta.substring(0, idx);
     }
 
     private String obtenerNombreFinal(String rutaCompleta) {
         int idx = rutaCompleta.lastIndexOf('/');
-        if (idx == -1 || idx == rutaCompleta.length() - 1) {
-            return rutaCompleta;
-        }
-        return rutaCompleta.substring(idx + 1);
+        return (idx == -1) ? rutaCompleta : rutaCompleta.substring(idx + 1);
     }
 }
