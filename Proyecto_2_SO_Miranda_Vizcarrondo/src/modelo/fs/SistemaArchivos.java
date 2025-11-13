@@ -4,17 +4,11 @@
  */
 package modelo.fs;
 
-
 import modelo.disco.Disco;
 import modelo.disco.Bloque;
 
 /**
  * Maneja la estructura de directorios y archivos y se conecta con el disco.
- * Añadido:
- *  - Eliminación recursiva de directorios (libera bloques y tabla de asignación).
- *  - Renombrado de archivos/directorios con actualización de tabla de asignación.
- *
- * @author Nathaly
  */
 public class SistemaArchivos {
 
@@ -43,17 +37,9 @@ public class SistemaArchivos {
         return tablaAsignacion;
     }
 
-    /**
-     * Crea un subdirectorio dentro de un directorio padre dado.
-     */
-    public Directorio crearDirectorio(Directorio padre, String nombre) {
-        if (padre == null) {
-            throw new IllegalArgumentException("El directorio padre no puede ser null");
-        }
-        Directorio nuevo = new Directorio(nombre, padre);
-        padre.agregarHijo(nuevo);
-        return nuevo;
-    }
+    // ----------------------------------------------------------------------
+    // CREAR / ELIMINAR ARCHIVO
+    // ----------------------------------------------------------------------
 
     /**
      * Crea un archivo dentro de un directorio padre dado.
@@ -86,8 +72,7 @@ public class SistemaArchivos {
     }
 
     /**
-     * Elimina un archivo.
-     * Libera los bloques del disco asociados a él y actualiza la tabla de asignación.
+     * Elimina un archivo: libera bloques, borra de la tabla y lo quita del directorio.
      */
     public boolean eliminarArchivo(Directorio padre, Archivo archivo) {
         if (padre == null || archivo == null) {
@@ -98,140 +83,171 @@ public class SistemaArchivos {
         if (primerBloque != Bloque.NULO) {
             disco.liberarCadenaBloques(primerBloque);
         }
-
         // Eliminar de la tabla de asignación
         eliminarEntradaTablaPorIdArchivo(archivo.getId());
-
         // Eliminar del directorio
         return padre.eliminarHijo(archivo);
     }
 
+    // ----------------------------------------------------------------------
+    // CREAR / ELIMINAR DIRECTORIO (ELIMINACIÓN RECURSIVA)
+    // ----------------------------------------------------------------------
+
     /**
-     * Elimina recursivamente un directorio y todo su contenido.
-     * Libera bloques de archivos y elimina entradas de la tabla de asignación.
-     * Retorna true si se eliminó (del padre debe haberse invocado eliminación)
+     * Crea un subdirectorio dentro de un directorio padre dado.
      */
-    private void eliminarDirectorioRecursivo(Directorio dir) {
-        // Recorremos copia de los hijos para evitar modificaciones concurrentes al iterar
-        ListaEnlazada<NodoFS> hijos = dir.getHijos();
-        // Usamos un array temporal porque ListaEnlazada no devuelve un array directamente.
-        // Recorremos por índice
-        int n = hijos.size();
-        // Recorremos desde el final al principio para eliminar sin romper la lista
-        for (int i = n - 1; i >= 0; i--) {
-            NodoFS hijo = hijos.get(i);
-            if (hijo.esDirectorio()) {
-                // Si es directorio, eliminamos recursivamente
-                eliminarDirectorioRecursivo((Directorio) hijo);
-                // luego removemos el directorio hijo del padre actual
-                dir.eliminarHijo(hijo);
-            } else {
-                // Si es archivo, liberamos sus bloques y borramos su entrada
-                Archivo a = (Archivo) hijo;
-                int primer = a.getPrimerBloque();
-                if (primer != Bloque.NULO) {
-                    disco.liberarCadenaBloques(primer);
-                }
-                eliminarEntradaTablaPorIdArchivo(a.getId());
-                dir.eliminarHijo(a);
-            }
+    public Directorio crearDirectorio(Directorio padre, String nombre) {
+        if (padre == null) {
+            throw new IllegalArgumentException("El directorio padre no puede ser null");
         }
-        // Al terminar, el directorio dir estará vacío. Su eliminación (del padre) la hace el caller.
+        Directorio nuevo = new Directorio(nombre, padre);
+        padre.agregarHijo(nuevo);
+        return nuevo;
     }
 
     /**
-     * Método público para eliminar un directorio (identificado por referencia).
-     * Se encarga de la eliminación recursiva y de quitar el directorio del padre.
-     * Retorna true si se eliminó correctamente, false si no (p.ej. padre null).
+     * Elimina un directorio de forma RECURSIVA:
+     * - Borra todos los archivos y subdirectorios descendientes.
+     * - Libera bloques de TODOS los archivos.
+     * - Quita el directorio objetivo de su padre.
+     * @return true si se eliminó; false si no se pudo.
      */
-    public boolean eliminarDirectorio(Directorio padre, Directorio dir) {
-        if (padre == null || dir == null) return false;
-        // No permitimos eliminar la raíz desde aquí
-        if (dir == raiz) {
-            System.out.println("No se puede eliminar la raíz del sistema de archivos.");
+    public boolean eliminarDirectorioRecursivo(Directorio padre, Directorio dirAEliminar) {
+        if (padre == null || dirAEliminar == null) {
             return false;
         }
-
-        // Eliminar contenido recursivamente
-        eliminarDirectorioRecursivo(dir);
-
-        // Finalmente eliminar el propio directorio del padre
-        boolean ok = padre.eliminarHijo(dir);
-        if (!ok) {
-            System.out.println("No se pudo eliminar el directorio del padre: " + dir.getNombre());
-        }
-        return ok;
+        // 1) Borrado recursivo del contenido
+        eliminarContenidoRecursivo(dirAEliminar);
+        // 2) Quitar el directorio objetivo de su padre
+        return padre.eliminarHijo(dirAEliminar);
     }
+
+    /**
+     * Recorre todos los hijos de 'dir' y:
+     * - Si es archivo: libera bloques + borra de tabla + lo quita del directorio.
+     * - Si es directorio: baja recursivamente y al volver lo elimina.
+     *
+     * Nota: NO usamos ArrayList; recorremos por índice de atrás hacia adelante
+     * usando nuestra ListaEnlazada<T> para evitar problemas al eliminar durante el recorrido.
+     */
+    private void eliminarContenidoRecursivo(Directorio dir) {
+        // Primero eliminar TODOS los archivos
+        for (int i = dir.getHijos().size() - 1; i >= 0; i--) {
+            NodoFS hijo = dir.getHijos().get(i);
+            if (!hijo.esDirectorio()) {
+                Archivo archivo = (Archivo) hijo;
+                // liberar bloques + borrar tabla + quitar del dir actual
+                int primerBloque = archivo.getPrimerBloque();
+                if (primerBloque != Bloque.NULO) {
+                    disco.liberarCadenaBloques(primerBloque);
+                }
+                eliminarEntradaTablaPorIdArchivo(archivo.getId());
+                dir.eliminarHijo(archivo);
+            }
+        }
+        // Luego eliminar subdirectorios (post-orden)
+        for (int i = dir.getHijos().size() - 1; i >= 0; i--) {
+            NodoFS hijo = dir.getHijos().get(i);
+            if (hijo.esDirectorio()) {
+                Directorio sub = (Directorio) hijo;
+                eliminarContenidoRecursivo(sub);
+                // después de limpiar su contenido, quitarlo del directorio actual
+                dir.eliminarHijo(sub);
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    // RENOMBRAR (actualiza tabla si es archivo)
+    // ----------------------------------------------------------------------
 
     /**
      * Renombra un nodo (archivo o directorio).
-     * Si es archivo, además actualiza la entrada de la tabla de asignación.
+     * Si es archivo, también actualiza su nombre en la tabla de asignación.
      */
-    public boolean renombrarNodo(NodoFS nodo, String nuevoNombre) {
-        if (nodo == null || nuevoNombre == null || nuevoNombre.trim().isEmpty()) {
-            return false;
+    public void renombrarNodo(NodoFS nodo, String nuevoNombre) {
+        if (nodo == null || nuevoNombre == null || nuevoNombre.isEmpty()) {
+            return;
         }
-        String viejo = nodo.getNombre();
         nodo.setNombre(nuevoNombre);
 
-        // Si es archivo, actualizar la tabla de asignación
         if (!nodo.esDirectorio()) {
             Archivo a = (Archivo) nodo;
-            // buscar entrada por id y actualizar nombre
-            final EntradaTablaAsignacion[] match = { null };
+            // buscar su entrada en la tabla y actualizar el nombre
+            final EntradaTablaAsignacion[] objetivo = { null };
             tablaAsignacion.forEach(ent -> {
                 if (ent.getIdArchivo() == a.getId()) {
-                    match[0] = ent;
+                    objetivo[0] = ent;
                 }
             });
-            if (match[0] != null) {
-                match[0].setNombreArchivo(nuevoNombre);
-            } else {
-                // Si no encontramos la entrada, logear (posible inconsistencia)
-                System.out.println("Atención: no se encontró entrada de tabla para archivo renombrado: " + viejo);
+            if (objetivo[0] != null) {
+                objetivo[0].setNombreArchivo(nuevoNombre);
             }
         }
-        return true;
+    }
+
+    // ----------------------------------------------------------------------
+    // BÚSQUEDA POR RUTA (útil para gestor/menús)
+    // ----------------------------------------------------------------------
+
+    /**
+     * Busca un directorio por ruta absoluta (p.ej. "/root/Documentos/Sub").
+     * Si la ruta es "/" retorna la raíz.
+     */
+    public Directorio buscarDirectorioPorRuta(String ruta) {
+        if (ruta == null || ruta.isEmpty() || "/".equals(ruta)) {
+            return raiz;
+        }
+
+        String limpia = ruta.trim();
+        if (limpia.startsWith("/")) limpia = limpia.substring(1);
+
+        String[] partes = limpia.split("/");
+
+        Directorio actual = raiz;
+        int i = 0;
+        if (partes.length > 0 && partes[0].equals(actual.getNombre())) {
+            i = 1; // saltamos "root"
+        }
+
+        for (; i < partes.length; i++) {
+            String nombreDir = partes[i];
+            if (nombreDir.isEmpty()) continue;
+            NodoFS hijo = actual.buscarHijoPorNombre(nombreDir);
+            if (hijo == null || !hijo.esDirectorio()) {
+                return null;
+            }
+            actual = (Directorio) hijo;
+        }
+        return actual;
     }
 
     /**
-     * Renombra un nodo dado por una ruta absoluta (ej: "/root/Dir/archivo.txt").
-     * Devuelve true si se renombró correctamente.
+     * Busca un nodo (archivo o directorio) por ruta absoluta (p.ej. "/root/Docs/a.txt").
+     * Retorna null si no existe.
      */
-    public boolean renombrarPorRuta(String rutaCompleta, String nuevoNombre) {
-        if (rutaCompleta == null || nuevoNombre == null) return false;
+    public NodoFS buscarNodoPorRuta(String rutaCompleta) {
+        if (rutaCompleta == null || rutaCompleta.isEmpty()) return null;
+        String ruta = rutaCompleta.trim();
+        if (ruta.equals("/") || ruta.equals("/root") || ruta.equals("root")) return raiz;
 
-        String rutaDir = obtenerRutaDirectorio(rutaCompleta);
-        String nombreFinal = obtenerNombreFinal(rutaCompleta);
+        // separar en (rutaDir) + (nombre final)
+        int idx = ruta.lastIndexOf('/');
+        String rutaDir = (idx <= 0) ? "/root" : ruta.substring(0, idx);
+        String nombreFinal = (idx == -1 || idx == ruta.length() - 1) ? ruta : ruta.substring(idx + 1);
 
-        Directorio dirPadre = buscarDirectorioPorRuta(rutaDir);
-        if (dirPadre == null) return false;
+        Directorio padre = buscarDirectorioPorRuta(rutaDir);
+        if (padre == null) return null;
 
-        NodoFS nodo = dirPadre.buscarHijoPorNombre(nombreFinal);
-        if (nodo == null) return false;
-
-        return renombrarNodo(nodo, nuevoNombre);
+        return padre.buscarHijoPorNombre(nombreFinal);
     }
 
-    /**
-     * Elimina la entrada en la tabla de asignación asociada a un archivo.
-     */
-    private void eliminarEntradaTablaPorIdArchivo(int idArchivo) {
-        final EntradaTablaAsignacion[] aEliminar = { null };
-        tablaAsignacion.forEach(ent -> {
-            if (ent.getIdArchivo() == idArchivo) {
-                aEliminar[0] = ent;
-            }
-        });
-
-        if (aEliminar[0] != null) {
-            tablaAsignacion.eliminar(aEliminar[0]);
-        }
-    }
+    // ----------------------------------------------------------------------
+    // IMPRESIÓN / DEBUG
+    // ----------------------------------------------------------------------
 
     /**
      * Imprime en consola la estructura del sistema de archivos.
-     * Esto nos ayuda a probar rápidamente.
      */
     public void imprimirEstructura() {
         imprimirDirectorio(raiz, 0);
@@ -290,55 +306,23 @@ public class SistemaArchivos {
         });
     }
 
-    // ------------------------------
-    // Métodos utilitarios para trabajar con rutas (copiados del Gestor)
-    // ------------------------------
+    // ----------------------------------------------------------------------
+    // PRIVADOS
+    // ----------------------------------------------------------------------
 
     /**
-     * Busca un directorio por ruta absoluta, p.ej. "/root/Documentos/Sub".
+     * Elimina la entrada en la tabla de asignación asociada a un archivo.
      */
-    public Directorio buscarDirectorioPorRuta(String ruta) {
-        if (ruta == null || ruta.isEmpty() || "/".equals(ruta)) {
-            return this.getRaiz();
-        }
-
-        String limpia = ruta.trim();
-        if (limpia.startsWith("/")) {
-            limpia = limpia.substring(1);
-        }
-
-        String[] partes = limpia.split("/");
-
-        Directorio actual = this.getRaiz();
-        int i = 0;
-        if (partes.length > 0 && partes[0].equals(actual.getNombre())) {
-            i = 1; // saltamos "root"
-        }
-
-        for (; i < partes.length; i++) {
-            String nombreDir = partes[i];
-            NodoFS hijo = actual.buscarHijoPorNombre(nombreDir);
-            if (hijo == null || !hijo.esDirectorio()) {
-                return null;
+    private void eliminarEntradaTablaPorIdArchivo(int idArchivo) {
+        final EntradaTablaAsignacion[] aEliminar = { null };
+        tablaAsignacion.forEach(ent -> {
+            if (ent.getIdArchivo() == idArchivo) {
+                aEliminar[0] = ent;
             }
-            actual = (Directorio) hijo;
-        }
-        return actual;
-    }
+        });
 
-    private String obtenerRutaDirectorio(String rutaCompleta) {
-        int idx = rutaCompleta.lastIndexOf('/');
-        if (idx <= 0) {
-            return "/root";
+        if (aEliminar[0] != null) {
+            tablaAsignacion.eliminar(aEliminar[0]);
         }
-        return rutaCompleta.substring(0, idx);
-    }
-
-    private String obtenerNombreFinal(String rutaCompleta) {
-        int idx = rutaCompleta.lastIndexOf('/');
-        if (idx == -1 || idx == rutaCompleta.length() - 1) {
-            return rutaCompleta;
-        }
-        return rutaCompleta.substring(idx + 1);
     }
 }

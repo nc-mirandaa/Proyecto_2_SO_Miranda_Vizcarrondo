@@ -19,111 +19,141 @@ public class GestorSistema {
     private PlanificadorDisco planificador;
     private int posicionCabezal;
 
-    private RolUsuario rolActual = RolUsuario.ADMIN; // por defecto admin
+    // === ROLES ===
+    private RolUsuario rolActual = RolUsuario.ADMIN;
 
     public GestorSistema(int bloquesDisco) {
         this.sistemaArchivos = new SistemaArchivos(bloquesDisco);
         this.colaProcesos = new ColaProcesos();
         this.colaES = new ColaSolicitudesES();
-        this.planificador = new PlanificadorFIFO();
+        this.planificador = new PlanificadorFIFO(); // default
         this.posicionCabezal = 0;
     }
 
-    // Permitir reemplazar el FS (para cargar desde persistencia)
-    public void setSistemaArchivos(SistemaArchivos fs) {
-        this.sistemaArchivos = fs;
+    public SistemaArchivos getSistemaArchivos() { return sistemaArchivos; }
+    public void setPlanificador(PlanificadorDisco planificador) { this.planificador = planificador; }
+
+    public void setSistemaArchivos(SistemaArchivos sistemaArchivos) {
+    this.sistemaArchivos = sistemaArchivos;
     }
+    
+    // === Roles ===
+    public void setRolActual(RolUsuario rol) { this.rolActual = rol; }
+    public RolUsuario getRolActual() { return this.rolActual; }
 
-    public SistemaArchivos getSistemaArchivos() {
-        return sistemaArchivos;
-    }
+    // ======================== API de alto nivel ========================
+    // Todos devuelven boolean:
+    //  - true  -> se encoló el proceso
+    //  - false -> se rechazó (por permisos o validación)
 
-    public void setPlanificador(PlanificadorDisco planificador) {
-        this.planificador = planificador;
-    }
-
-    public void setRolActual(RolUsuario rol) {
-        this.rolActual = rol;
-    }
-
-    public RolUsuario getRolActual() {
-        return rolActual;
-    }
-
-    // =========================================================
-    // API de alto nivel: solicitudes
-    // =========================================================
-
-    public void solicitarCrearArchivo(String rutaCompleta, int tamanoEnBloques) {
-        if (!tienePermiso()) return;
+    // ARCHIVOS
+    public boolean solicitarCrearArchivo(String rutaCompleta, int tamanoEnBloques) {
+        // Permitido para ADMIN y USUARIO
         Proceso p = new Proceso(TipoOperacionFS.CREAR_ARCHIVO, rutaCompleta, tamanoEnBloques);
+        p.setEstado(EstadoProceso.NUEVO);
         colaProcesos.encolar(p);
-    }
-
-    public void solicitarEliminarArchivo(String rutaCompleta) {
-        if (!tienePermiso()) return;
-        Proceso p = new Proceso(TipoOperacionFS.ELIMINAR_ARCHIVO, rutaCompleta, 0);
-        colaProcesos.encolar(p);
-    }
-
-    public void solicitarCrearDirectorio(String rutaCompleta) {
-        if (!tienePermiso()) return;
-        Proceso p = new Proceso(TipoOperacionFS.CREAR_DIRECTORIO, rutaCompleta, 0);
-        colaProcesos.encolar(p);
-    }
-
-    public void solicitarEliminarDirectorio(String rutaCompleta) {
-        if (!tienePermiso()) return;
-        Proceso p = new Proceso(TipoOperacionFS.ELIMINAR_DIRECTORIO, rutaCompleta, 0);
-        colaProcesos.encolar(p);
-    }
-
-    public void solicitarRenombrar(String rutaCompleta, String nuevoNombre) {
-        if (!tienePermiso()) return;
-        Proceso p = new Proceso(TipoOperacionFS.RENOMBRAR, rutaCompleta, 0);
-        p.setNuevoNombre(nuevoNombre);
-        colaProcesos.encolar(p);
-    }
-
-    private boolean tienePermiso() {
-        if (rolActual != RolUsuario.ADMIN) {
-            System.out.println("❌ Permiso denegado. Solo el ADMIN puede realizar esta operación.");
-            return false;
-        }
         return true;
     }
 
-    // =========================================================
-    // Ejecución de operaciones simuladas
-    // =========================================================
+    public boolean solicitarEliminarArchivo(String rutaCompleta) {
+        // Solo ADMIN
+        if (rolActual != RolUsuario.ADMIN) {
+            System.out.println("Permiso denegado: solo ADMIN puede eliminar archivos.");
+            return false;
+        }
+        Proceso p = new Proceso(TipoOperacionFS.ELIMINAR_ARCHIVO, rutaCompleta);
+        p.setEstado(EstadoProceso.NUEVO);
+        colaProcesos.encolar(p);
+        return true;
+    }
+
+    // DIRECTORIOS
+    public boolean solicitarCrearDirectorio(String rutaCompletaDir) {
+        // Permitido para ADMIN y USUARIO
+        Proceso p = new Proceso(TipoOperacionFS.CREAR_DIRECTORIO, rutaCompletaDir);
+        p.setEstado(EstadoProceso.NUEVO);
+        colaProcesos.encolar(p);
+        return true;
+    }
+
+    public boolean solicitarEliminarDirectorio(String rutaCompletaDir) {
+        // Solo ADMIN
+        if (rolActual != RolUsuario.ADMIN) {
+            System.out.println("Permiso denegado: solo ADMIN puede eliminar directorios.");
+            return false;
+        }
+        if (rutaCompletaDir.equals("/root") || rutaCompletaDir.equals("root")) {
+            System.out.println("Operación inválida: no se puede eliminar /root.");
+            return false;
+        }
+        Proceso p = new Proceso(TipoOperacionFS.ELIMINAR_DIRECTORIO, rutaCompletaDir);
+        p.setEstado(EstadoProceso.NUEVO);
+        colaProcesos.encolar(p);
+        return true;
+    }
+
+    // RENOMBRAR
+    public boolean solicitarRenombrar(String rutaCompleta, String nuevoNombre) {
+        // Solo ADMIN
+        if (rolActual != RolUsuario.ADMIN) {
+            System.out.println("Permiso denegado: solo ADMIN puede renombrar.");
+            return false;
+        }
+        Proceso p = new Proceso(TipoOperacionFS.RENOMBRAR, rutaCompleta, nuevoNombre);
+        p.setEstado(EstadoProceso.NUEVO);
+        colaProcesos.encolar(p);
+        return true;
+    }
+
+    // ======================== Simulación de un paso ========================
 
     public void ejecutarPaso() {
         if (colaProcesos.estaVacia()) {
-            System.out.println("No hay procesos pendientes.");
+            System.out.println("No hay procesos en la cola.");
             return;
         }
-
         Proceso p = colaProcesos.desencolar();
+        if (p == null) return;
+
         System.out.println("\n=== Ejecutando " + p + " ===");
+        p.setEstado(EstadoProceso.LISTO);
 
-        SolicitudES sol = new SolicitudES(p, 0);
-        colaES.encolar(sol);
+        // Generar solicitud de E/S (simple, a pos=0 por ahora)
+        colaES.encolar(new SolicitudES(p, 0));
 
+        // Elegir con el planificador
         SolicitudES siguiente = planificador.seleccionarSiguiente(colaES, posicionCabezal);
-        if (siguiente == null) return;
-
+        if (siguiente == null) {
+            System.out.println("No hay solicitudes de E/S.");
+            return;
+        }
+        System.out.println("Planificador seleccionó: " + siguiente);
+        p.setEstado(EstadoProceso.EJECUTANDO);
         posicionCabezal = siguiente.getPosicion();
+
+        // Ejecutar operación real
         ejecutarOperacionFS(p);
+
+        p.setEstado(EstadoProceso.TERMINADO);
+        System.out.println("Proceso " + p.getId() + " TERMINADO.");
     }
+
+    // ======================== Ejecución de FS ========================
 
     private void ejecutarOperacionFS(Proceso p) {
         switch (p.getTipoOperacion()) {
-            case CREAR_ARCHIVO -> ejecutarCrearArchivo(p);
-            case ELIMINAR_ARCHIVO -> ejecutarEliminarArchivo(p);
-            case CREAR_DIRECTORIO -> ejecutarCrearDirectorio(p);
-            case ELIMINAR_DIRECTORIO -> ejecutarEliminarDirectorio(p);
-            case RENOMBRAR -> ejecutarRenombrar(p);
-            default -> System.out.println("Operación no implementada: " + p.getTipoOperacion());
+            case CREAR_ARCHIVO:
+                ejecutarCrearArchivo(p); break;
+            case ELIMINAR_ARCHIVO:
+                ejecutarEliminarArchivo(p); break;
+            case CREAR_DIRECTORIO:
+                ejecutarCrearDirectorio(p); break;
+            case ELIMINAR_DIRECTORIO:
+                ejecutarEliminarDirectorio(p); break;
+            case RENOMBRAR:
+                ejecutarRenombrar(p); break;
+            default:
+                System.out.println("Operación no implementada: " + p.getTipoOperacion());
         }
     }
 
@@ -133,15 +163,25 @@ public class GestorSistema {
         String rutaDir = obtenerRutaDirectorio(ruta);
         String nombreArchivo = obtenerNombreFinal(ruta);
 
-        Directorio dirPadre = buscarDirectorioPorRuta(rutaDir);
+        Directorio dirPadre = sistemaArchivos.buscarDirectorioPorRuta(rutaDir);
         if (dirPadre == null) {
-            System.out.println("Directorio padre no encontrado.");
+            System.out.println("Directorio padre no encontrado: " + rutaDir);
+            return;
+        }
+
+        if (dirPadre.buscarHijoPorNombre(nombreArchivo) != null) {
+            System.out.println("Ya existe un nodo con ese nombre en: " + rutaDir);
             return;
         }
 
         Archivo archivo = sistemaArchivos.crearArchivo(dirPadre, nombreArchivo, tamBloques);
-        if (archivo != null)
-            System.out.println("Archivo creado correctamente.");
+        if (archivo == null) {
+            System.out.println("No se pudo crear el archivo (sin espacio).");
+        } else {
+            System.out.println("Archivo creado: " + archivo.getNombre() +
+                    " en " + dirPadre.getRutaCompleta() +
+                    " (primerBloque=" + archivo.getPrimerBloque() + ")");
+        }
     }
 
     private void ejecutarEliminarArchivo(Proceso p) {
@@ -149,92 +189,97 @@ public class GestorSistema {
         String rutaDir = obtenerRutaDirectorio(ruta);
         String nombreArchivo = obtenerNombreFinal(ruta);
 
-        Directorio dirPadre = buscarDirectorioPorRuta(rutaDir);
-        if (dirPadre == null) return;
+        Directorio dirPadre = sistemaArchivos.buscarDirectorioPorRuta(rutaDir);
+        if (dirPadre == null) {
+            System.out.println("Directorio padre no encontrado: " + rutaDir);
+            return;
+        }
 
         NodoFS nodo = dirPadre.buscarHijoPorNombre(nombreArchivo);
         if (nodo == null || nodo.esDirectorio()) {
-            System.out.println("Archivo no encontrado o es directorio.");
+            System.out.println("Archivo no encontrado o es directorio: " + nombreArchivo);
             return;
         }
 
-        sistemaArchivos.eliminarArchivo(dirPadre, (Archivo) nodo);
-        System.out.println("Archivo eliminado correctamente.");
+        boolean ok = sistemaArchivos.eliminarArchivo(dirPadre, (Archivo) nodo);
+        System.out.println(ok ? "Archivo eliminado: " + ruta
+                              : "No se pudo eliminar el archivo: " + ruta);
     }
 
     private void ejecutarCrearDirectorio(Proceso p) {
-        String ruta = p.getRutaObjetivo();
-        String rutaPadre = obtenerRutaDirectorio(ruta);
-        String nombreDir = obtenerNombreFinal(ruta);
+        String rutaCompletaDir = p.getRutaObjetivo();
+        String rutaPadre = obtenerRutaDirectorio(rutaCompletaDir);
+        String nombreDir = obtenerNombreFinal(rutaCompletaDir);
 
-        Directorio dirPadre = buscarDirectorioPorRuta(rutaPadre);
+        Directorio dirPadre = sistemaArchivos.buscarDirectorioPorRuta(rutaPadre);
         if (dirPadre == null) {
-            System.out.println("Directorio padre no encontrado.");
+            System.out.println("Directorio padre no encontrado: " + rutaPadre);
             return;
         }
 
-        sistemaArchivos.crearDirectorio(dirPadre, nombreDir);
-        System.out.println("Directorio creado correctamente.");
+        if (dirPadre.buscarHijoPorNombre(nombreDir) != null) {
+            System.out.println("Ya existe un nodo con ese nombre en: " + rutaPadre);
+            return;
+        }
+
+        Directorio creado = sistemaArchivos.crearDirectorio(dirPadre, nombreDir);
+        System.out.println("Directorio creado: " + creado.getRutaCompleta());
     }
 
     private void ejecutarEliminarDirectorio(Proceso p) {
-        String ruta = p.getRutaObjetivo();
-        String rutaPadre = obtenerRutaDirectorio(ruta);
-        String nombreDir = obtenerNombreFinal(ruta);
-
-        Directorio dirPadre = buscarDirectorioPorRuta(rutaPadre);
-        if (dirPadre == null) return;
-
-        NodoFS nodo = dirPadre.buscarHijoPorNombre(nombreDir);
-        if (nodo == null || !nodo.esDirectorio()) {
-            System.out.println("Directorio no encontrado.");
+        String rutaDir = p.getRutaObjetivo();
+        if (rutaDir.equals("/root") || rutaDir.equals("root")) {
+            System.out.println("Operación inválida: no se puede eliminar /root.");
             return;
         }
 
-        sistemaArchivos.eliminarDirectorioRecursivo(dirPadre, (Directorio) nodo);
-        System.out.println("Directorio eliminado recursivamente.");
+        String rutaPadre = obtenerRutaDirectorio(rutaDir);
+        String nombreDir = obtenerNombreFinal(rutaDir);
+
+        Directorio dirPadre = sistemaArchivos.buscarDirectorioPorRuta(rutaPadre);
+        if (dirPadre == null) {
+            System.out.println("Directorio padre no encontrado: " + rutaPadre);
+            return;
+        }
+
+        NodoFS nodo = dirPadre.buscarHijoPorNombre(nombreDir);
+        if (nodo == null || !nodo.esDirectorio()) {
+            System.out.println("No existe ese directorio: " + rutaDir);
+            return;
+        }
+
+        boolean ok = sistemaArchivos.eliminarDirectorioRecursivo(dirPadre, (Directorio) nodo);
+        System.out.println(ok ? "Directorio eliminado: " + rutaDir
+                              : "No se pudo eliminar el directorio: " + rutaDir);
     }
 
     private void ejecutarRenombrar(Proceso p) {
         String ruta = p.getRutaObjetivo();
         String nuevoNombre = p.getNuevoNombre();
-        String rutaPadre = obtenerRutaDirectorio(ruta);
-        String nombreViejo = obtenerNombreFinal(ruta);
 
-        Directorio dirPadre = buscarDirectorioPorRuta(rutaPadre);
-        if (dirPadre == null) return;
+        if (nuevoNombre == null || nuevoNombre.isEmpty()) {
+            System.out.println("Nuevo nombre inválido.");
+            return;
+        }
 
-        NodoFS nodo = dirPadre.buscarHijoPorNombre(nombreViejo);
+        NodoFS nodo = sistemaArchivos.buscarNodoPorRuta(ruta);
         if (nodo == null) {
-            System.out.println("Elemento no encontrado.");
+            System.out.println("Nodo no encontrado: " + ruta);
+            return;
+        }
+
+        // evitar duplicado en el mismo directorio
+        Directorio padre = nodo.getPadre();
+        if (padre != null && padre.buscarHijoPorNombre(nuevoNombre) != null) {
+            System.out.println("Ya existe un nodo con ese nombre en: " + padre.getRutaCompleta());
             return;
         }
 
         sistemaArchivos.renombrarNodo(nodo, nuevoNombre);
-        System.out.println("Elemento renombrado correctamente.");
+        System.out.println("Renombrado: " + ruta + " -> " + nuevoNombre);
     }
 
-    // =========================================================
-    // Utilidades de ruta
-    // =========================================================
-    private Directorio buscarDirectorioPorRuta(String ruta) {
-        if (ruta == null || ruta.isEmpty() || "/".equals(ruta)) {
-            return sistemaArchivos.getRaiz();
-        }
-
-        String limpia = ruta.startsWith("/") ? ruta.substring(1) : ruta;
-        String[] partes = limpia.split("/");
-
-        Directorio actual = sistemaArchivos.getRaiz();
-        int i = partes[0].equals(actual.getNombre()) ? 1 : 0;
-
-        for (; i < partes.length; i++) {
-            NodoFS hijo = actual.buscarHijoPorNombre(partes[i]);
-            if (hijo == null || !hijo.esDirectorio()) return null;
-            actual = (Directorio) hijo;
-        }
-        return actual;
-    }
+    // ======================== Utilidades de ruta ========================
 
     private String obtenerRutaDirectorio(String rutaCompleta) {
         int idx = rutaCompleta.lastIndexOf('/');
@@ -244,6 +289,8 @@ public class GestorSistema {
 
     private String obtenerNombreFinal(String rutaCompleta) {
         int idx = rutaCompleta.lastIndexOf('/');
-        return (idx == -1) ? rutaCompleta : rutaCompleta.substring(idx + 1);
+        if (idx == -1 || idx == rutaCompleta.length() - 1) return rutaCompleta;
+        return rutaCompleta.substring(idx + 1);
     }
 }
+

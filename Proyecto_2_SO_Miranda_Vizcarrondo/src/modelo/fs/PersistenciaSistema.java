@@ -5,120 +5,137 @@
 package modelo.fs;
 
 import java.io.*;
-import java.util.*;
 
 /**
- * Maneja la persistencia del sistema de archivos.
- * Guarda y carga la estructura (directorios y archivos) en un archivo de texto.
+ * Utilidad para guardar y cargar el estado del sistema de archivos
+ * en un archivo de texto simple.
+ *
  * Formato:
- *   D;/ruta/directorio
- *   F;/ruta/archivo;tamano;primerBloque
+ *   Primera línea:  DISCO;N
+ *   Directorio:     D;/ruta/completa
+ *   Archivo:        F;/ruta/completa/archivo.ext;tamanoEnBloques
  */
 public class PersistenciaSistema {
 
-    // Guarda toda la estructura en un archivo de texto
-    public static void guardar(SistemaArchivos sistema, String rutaArchivo) {
-        try (PrintWriter writer = new PrintWriter(new FileWriter(rutaArchivo))) {
-            guardarDirectorioRecursivo(sistema.getRaiz(), writer);
-            System.out.println("✅ Sistema de archivos guardado en: " + rutaArchivo);
-        } catch (IOException e) {
-            System.err.println("⚠ Error al guardar el sistema de archivos: " + e.getMessage());
+    // ===================== GUARDAR =====================
+
+    public static void guardar(SistemaArchivos sa, String nombreArchivo) throws IOException {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(nombreArchivo))) {
+
+            // Línea con cantidad de bloques del disco
+            bw.write("DISCO;" + sa.getDisco().getCantidadBloques());
+            bw.newLine();
+
+            // Recorrer desde la raíz
+            Directorio raiz = sa.getRaiz();
+            String rutaRoot = "/root";
+            escribirDirectorioRec(raiz, rutaRoot, bw);
         }
     }
 
-    // Carga desde un archivo de texto
-    public static SistemaArchivos cargar(String rutaArchivo, int bloquesDisco) {
-        SistemaArchivos sistema = new SistemaArchivos(bloquesDisco);
-        File file = new File(rutaArchivo);
+    // No escribimos línea "D;/root", solo sus subdirectorios y archivos
+    private static void escribirDirectorioRec(Directorio dir, String rutaActual, BufferedWriter bw) throws IOException {
 
-        if (!file.exists()) {
-            System.out.println("No existe archivo de configuración, se inicia nuevo sistema.");
-            return sistema;
+        // Primero, escribir este directorio si no es la raíz
+        if (dir.getPadre() != null) {
+            bw.write("D;" + rutaActual);
+            bw.newLine();
         }
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String linea;
-            while ((linea = reader.readLine()) != null) {
-                procesarLinea(linea, sistema);
-            }
-            System.out.println("📂 Sistema de archivos cargado desde: " + rutaArchivo);
-        } catch (IOException e) {
-            System.err.println("⚠ Error al cargar el sistema de archivos: " + e.getMessage());
-        }
-
-        return sistema;
-    }
-
-    // Guarda recursivamente directorios y archivos
-    private static void guardarDirectorioRecursivo(Directorio dir, PrintWriter writer) {
-        writer.println("D;" + dir.getRutaCompleta());
-
-        dir.getHijos().forEach(hijo -> {
+        // Luego hijos
+        for (int i = 0; i < dir.getHijos().size(); i++) {
+            NodoFS hijo = dir.getHijos().get(i);
             if (hijo.esDirectorio()) {
-                guardarDirectorioRecursivo((Directorio) hijo, writer);
+                Directorio sub = (Directorio) hijo;
+                String nuevaRuta = rutaActual + "/" + sub.getNombre();
+                escribirDirectorioRec(sub, nuevaRuta, bw);
             } else {
                 Archivo a = (Archivo) hijo;
-                writer.println("F;" + a.getRutaCompleta() + ";" + a.getTamanoEnBloques() + ";" + a.getPrimerBloque());
-            }
-        });
-    }
-
-    // Procesa una línea del archivo cargado
-    private static void procesarLinea(String linea, SistemaArchivos sistema) {
-        String[] partes = linea.split(";");
-        if (partes.length == 0) return;
-
-        switch (partes[0]) {
-            case "D" -> {
-                String ruta = partes[1];
-                String rutaPadre = obtenerRutaDirectorio(ruta);
-                String nombreDir = obtenerNombreFinal(ruta);
-                Directorio padre = buscarDirectorioPorRuta(sistema.getRaiz(), rutaPadre);
-                if (padre != null) {
-                    sistema.crearDirectorio(padre, nombreDir);
-                }
-            }
-            case "F" -> {
-                if (partes.length < 4) return;
-                String ruta = partes[1];
-                int tam = Integer.parseInt(partes[2]);
-                int bloque = Integer.parseInt(partes[3]);
-
-                String rutaPadre = obtenerRutaDirectorio(ruta);
-                String nombreArchivo = obtenerNombreFinal(ruta);
-                Directorio padre = buscarDirectorioPorRuta(sistema.getRaiz(), rutaPadre);
-                if (padre != null) {
-                    Archivo a = sistema.crearArchivo(padre, nombreArchivo, tam);
-                    if (a != null) a.setPrimerBloque(bloque);
-                }
+                String rutaArchivo = rutaActual + "/" + a.getNombre();
+                bw.write("F;" + rutaArchivo + ";" + a.getTamanoEnBloques());
+                bw.newLine();
             }
         }
     }
 
-    // Utilidades
-    private static String obtenerRutaDirectorio(String rutaCompleta) {
-        int idx = rutaCompleta.lastIndexOf('/');
-        if (idx <= 0) return "/root";
-        return rutaCompleta.substring(0, idx);
+    // ===================== CARGAR =====================
+
+    public static SistemaArchivos cargar(String nombreArchivo) throws IOException {
+        try (BufferedReader br = new BufferedReader(new FileReader(nombreArchivo))) {
+
+            String linea = br.readLine();
+            if (linea == null || !linea.startsWith("DISCO;")) {
+                throw new IOException("Archivo de estado inválido: falta línea DISCO;");
+            }
+
+            String[] partes = linea.split(";");
+            int bloques = Integer.parseInt(partes[1].trim());
+
+            SistemaArchivos sa = new SistemaArchivos(bloques);
+
+            String l;
+            while ((l = br.readLine()) != null) {
+                l = l.trim();
+                if (l.isEmpty()) continue;
+
+                String[] p = l.split(";");
+                if (p[0].equals("D")) {
+                    String rutaDir = p[1].trim();
+                    crearDirectorioPorRuta(sa, rutaDir);
+                } else if (p[0].equals("F")) {
+                    String rutaArchivo = p[1].trim();
+                    int tam = Integer.parseInt(p[2].trim());
+
+                    int idx = rutaArchivo.lastIndexOf('/');
+                    String rutaPadre = (idx <= 0) ? "/root" : rutaArchivo.substring(0, idx);
+                    String nombre = (idx == -1 || idx == rutaArchivo.length() - 1)
+                            ? rutaArchivo
+                            : rutaArchivo.substring(idx + 1);
+
+                    Directorio padre = crearDirectorioPorRuta(sa, rutaPadre);
+                    if (padre != null) {
+                        sa.crearArchivo(padre, nombre, tam);
+                    }
+                }
+            }
+
+            return sa;
+        }
     }
 
-    private static String obtenerNombreFinal(String rutaCompleta) {
-        int idx = rutaCompleta.lastIndexOf('/');
-        if (idx == -1 || idx == rutaCompleta.length() - 1) return rutaCompleta;
-        return rutaCompleta.substring(idx + 1);
-    }
+    /**
+     * Garantiza que exista la ruta de directorio dada.
+     * Si ya existe, la retorna; si no, crea los directorios faltantes.
+     */
+    private static Directorio crearDirectorioPorRuta(SistemaArchivos sa, String rutaCompleta) {
+        if (rutaCompleta == null || rutaCompleta.isEmpty()
+                || rutaCompleta.equals("/") || rutaCompleta.equals("/root")) {
+            return sa.getRaiz();
+        }
 
-    private static Directorio buscarDirectorioPorRuta(Directorio raiz, String ruta) {
-        if (ruta.equals("/root") || ruta.equals("/")) return raiz;
+        String limpia = rutaCompleta.trim();
+        if (limpia.startsWith("/")) limpia = limpia.substring(1);
 
-        String limpia = ruta.replaceFirst("^/", "");
         String[] partes = limpia.split("/");
-        Directorio actual = raiz;
 
-        for (int i = 1; i < partes.length; i++) {
-            NodoFS hijo = actual.buscarHijoPorNombre(partes[i]);
-            if (hijo == null || !hijo.esDirectorio()) return null;
-            actual = (Directorio) hijo;
+        Directorio actual = sa.getRaiz();
+        int i = 0;
+        if (partes.length > 0 && partes[0].equals(actual.getNombre())) {
+            i = 1; // saltar "root"
+        }
+
+        for (; i < partes.length; i++) {
+            String nombreDir = partes[i];
+            if (nombreDir.isEmpty()) continue;
+
+            NodoFS hijo = actual.buscarHijoPorNombre(nombreDir);
+            if (hijo == null || !hijo.esDirectorio()) {
+                // crear nuevo directorio
+                Directorio nuevo = sa.crearDirectorio(actual, nombreDir);
+                actual = nuevo;
+            } else {
+                actual = (Directorio) hijo;
+            }
         }
         return actual;
     }

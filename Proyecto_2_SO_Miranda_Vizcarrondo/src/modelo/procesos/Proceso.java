@@ -17,11 +17,11 @@ public class Proceso {
     private EstadoProceso estado;
     private TipoOperacionFS tipoOperacion;
 
-    private String rutaObjetivo;   // p.ej. /root/Documentos/a.txt
-    private int tamanoEnBloques;   // solo aplica para crear archivo
+    private String rutaObjetivo;   // p.ej. /root/Documentos/a.txt  (o dir)
+    private int tamanoEnBloques;   // solo aplica al crear archivo
 
-    // 🔹 Campo agregado para operaciones de renombrado
-    private String nuevoNombre;
+    // NUEVO: para RENOMBRAR (nombre destino)
+    private String nuevoNombre;    // null si no aplica
 
     public Proceso(TipoOperacionFS tipoOperacion, String rutaObjetivo, int tamanoEnBloques) {
         this.id = contadorIds++;
@@ -31,45 +31,28 @@ public class Proceso {
         this.tamanoEnBloques = tamanoEnBloques;
     }
 
-    // ===== Getters y Setters =====
-
-    public int getId() {
-        return id;
+    // Constructor útil para operaciones que no usan tamaño
+    public Proceso(TipoOperacionFS tipoOperacion, String rutaObjetivo) {
+        this(tipoOperacion, rutaObjetivo, 0);
     }
 
-    public EstadoProceso getEstado() {
-        return estado;
-    }
-
-    public void setEstado(EstadoProceso estado) {
-        this.estado = estado;
-    }
-
-    public TipoOperacionFS getTipoOperacion() {
-        return tipoOperacion;
-    }
-
-    public String getRutaObjetivo() {
-        return rutaObjetivo;
-    }
-
-    public int getTamanoEnBloques() {
-        return tamanoEnBloques;
-    }
-
-    // 🔹 Nuevos métodos para manejar el nuevo nombre en RENOMBRAR
-    public String getNuevoNombre() {
-        return nuevoNombre;
-    }
-
-    public void setNuevoNombre(String nuevoNombre) {
+    // Constructor para RENOMBRAR
+    public Proceso(TipoOperacionFS tipoOperacion, String rutaObjetivo, String nuevoNombre) {
+        this(tipoOperacion, rutaObjetivo, 0);
         this.nuevoNombre = nuevoNombre;
     }
 
+    public int getId() { return id; }
+    public EstadoProceso getEstado() { return estado; }
+    public void setEstado(EstadoProceso estado) { this.estado = estado; }
+    public TipoOperacionFS getTipoOperacion() { return tipoOperacion; }
+    public String getRutaObjetivo() { return rutaObjetivo; }
+    public int getTamanoEnBloques() { return tamanoEnBloques; }
+    public String getNuevoNombre() { return nuevoNombre; }
+
     @Override
     public String toString() {
-        return "P" + id + " [" + tipoOperacion + ", " + estado + ", " + rutaObjetivo +
-                (nuevoNombre != null ? " -> " + nuevoNombre : "") + "]";
+        String extra = (nuevoNombre != null) ? (", nuevoNombre=" + nuevoNombre) : "";
+        return "P" + id + " [" + tipoOperacion + ", " + estado + ", " + rutaObjetivo + extra + "]";
     }
 }
-
