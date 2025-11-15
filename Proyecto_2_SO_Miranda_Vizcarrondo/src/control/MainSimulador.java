@@ -81,175 +81,154 @@ public class MainSimulador {
             String option = sc.nextLine().trim();
 
             switch (option) {
-                case "1":
-                    gestor.setPlanificador(new PlanificadorFIFO());
-                    nombrePlan = "FIFO";
-                    System.out.println("Planificador cambiado a FIFO.");
-                    break;
+    case "1":
+        gestor.setPlanificador(new PlanificadorFIFO());
+        nombrePlan = "FIFO";
+        System.out.println("Planificador cambiado a FIFO.");
+        break;
 
-                case "2":
-                    gestor.setPlanificador(new PlanificadorSSTF());
-                    nombrePlan = "SSTF";
-                    System.out.println("Planificador cambiado a SSTF.");
-                    break;
+    case "2":
+        gestor.setPlanificador(new PlanificadorSSTF());
+        nombrePlan = "SSTF";
+        System.out.println("Planificador cambiado a SSTF.");
+        break;
 
-                case "3":
-                    gestor.setPlanificador(new PlanificadorSCAN());
-                    nombrePlan = "SCAN";
-                    System.out.println("Planificador cambiado a SCAN.");
-                    break;
+    case "3":
+        gestor.setPlanificador(new PlanificadorSCAN());
+        nombrePlan = "SCAN";
+        System.out.println("Planificador cambiado a SCAN.");
+        break;
 
-                case "4":
-                    gestor.setPlanificador(new PlanificadorCSCAN());
-                    nombrePlan = "C-SCAN";
-                    System.out.println("Planificador cambiado a C-SCAN.");
-                    break;
+    case "4":
+        gestor.setPlanificador(new PlanificadorCSCAN());
+        nombrePlan = "C-SCAN";
+        System.out.println("Planificador cambiado a C-SCAN.");
+        break;
 
-                case "5":
-                    gestor.setRolActual(RolUsuario.ADMIN);
-                    System.out.println("Rol cambiado a ADMIN.");
-                    break;
+    case "5":
+        gestor.setRolActual(RolUsuario.ADMIN);
+        System.out.println("Rol cambiado a ADMIN.");
+        break;
 
-                case "6":
-                    gestor.setRolActual(RolUsuario.USUARIO);
-                    System.out.println("Rol cambiado a USUARIO.");
-                    break;
+    case "6":
+        gestor.setRolActual(RolUsuario.USUARIO);
+        System.out.println("Rol cambiado a USUARIO.");
+        break;
 
-                case "7": {
-                    System.out.print("Ruta directorio (ej: /root/DocsA): ");
-                    String rutaDir = normaliza(sc.nextLine());
+    case "7": {
+        System.out.print("Ruta directorio (ej: /root/DocsA): ");
+        String rutaDir = normaliza(sc.nextLine());
 
-                    System.out.print("Nombre del archivo: ");
-                    String nombre = sc.nextLine().trim();
+        System.out.print("Nombre del archivo: ");
+        String nombre = sc.nextLine().trim();
 
-                    System.out.print("Tamaño en bloques: ");
-                    int tam;
-                    try {
-                        tam = Integer.parseInt(sc.nextLine());
-                    } catch (NumberFormatException e) {
-                        System.out.println("Tamaño inválido.");
-                        break;
-                    }
+        System.out.print("Tamaño en bloques: ");
+        int tam;
+        try {
+            tam = Integer.parseInt(sc.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("Tamaño inválido.");
+            break;
+        }
 
-                    String rutaArchivo = rutaDir + "/" + nombre;
+        String rutaArchivo = rutaDir + "/" + nombre;
 
-                    boolean ok = gestor.solicitarCrearArchivo(rutaArchivo, tam);
-                    if (ok) gestor.ejecutarPaso();
-                    break;
-                }
+        boolean ok = gestor.solicitarCrearArchivo(rutaArchivo, tam);
+        if (ok) {
+            System.out.println("Proceso CREAR_ARCHIVO encolado. Usa '12) Ejecutar un paso' para procesarlo.");
+        }
+        break;
+    }
 
-                case "8": {
-                    System.out.print("Ruta del archivo a eliminar: ");
-                    String ruta = normaliza(sc.nextLine());
+    case "8": {
+        System.out.print("Ruta del archivo a eliminar: ");
+        String ruta = normaliza(sc.nextLine());
 
-                    boolean ok = gestor.solicitarEliminarArchivo(ruta);
-                    if (ok) gestor.ejecutarPaso();
-                    break;
-                }
+        boolean ok = gestor.solicitarEliminarArchivo(ruta);
+        if (ok) {
+            System.out.println("Proceso ELIMINAR_ARCHIVO encolado. Usa '12) Ejecutar un paso' para procesarlo.");
+        }
+        break;
+    }
 
-                case "9": {
-                    System.out.print("Ruta del directorio padre: ");
-                    String rutaPadre = normaliza(sc.nextLine());
+    case "9": {
+        System.out.print("Ruta del directorio padre: ");
+        String rutaPadre = normaliza(sc.nextLine());
 
-                    System.out.print("Nombre del nuevo directorio: ");
-                    String nombre = sc.nextLine().trim();
+        System.out.print("Nombre del nuevo directorio: ");
+        String nombre = sc.nextLine().trim();
 
-                    String rutaDir = rutaPadre + "/" + nombre;
+        String rutaDir = rutaPadre + "/" + nombre;
 
-                    boolean ok = gestor.solicitarCrearDirectorio(rutaDir);
-                    if (ok) gestor.ejecutarPaso();
-                    break;
-                }
+        boolean ok = gestor.solicitarCrearDirectorio(rutaDir);
+        if (ok) {
+            System.out.println("Proceso CREAR_DIRECTORIO encolado. Usa '12) Ejecutar un paso' para procesarlo.");
+        }
+        break;
+    }
 
-                case "10": {
-                    System.out.print("Ruta completa del directorio a eliminar: ");
-                    String ruta = normaliza(sc.nextLine());
+    case "10": {
+        System.out.print("Ruta completa del directorio a eliminar: ");
+        String ruta = normaliza(sc.nextLine());
 
-                    boolean ok = gestor.solicitarEliminarDirectorio(ruta);
-                    if (ok) gestor.ejecutarPaso();
-                    break;
-                }
+        boolean ok = gestor.solicitarEliminarDirectorio(ruta);
+        if (ok) {
+            System.out.println("Proceso ELIMINAR_DIRECTORIO encolado. Usa '12) Ejecutar un paso' para procesarlo.");
+        }
+        break;
+    }
 
-                case "11": {
-                    System.out.print("Ruta completa del nodo a renombrar: ");
-                    String ruta = normaliza(sc.nextLine());
+    case "11": {
+        System.out.print("Ruta completa del nodo a renombrar: ");
+        String ruta = normaliza(sc.nextLine());
 
-                    if (gestor.getRolActual() != RolUsuario.ADMIN) {
-                        System.out.println("Permiso denegado: solo ADMIN puede renombrar.");
-                        break;
-                    }
+        if (gestor.getRolActual() != RolUsuario.ADMIN) {
+            System.out.println("Permiso denegado: solo ADMIN puede renombrar.");
+            break;
+        }
 
-                    if (gestor.getSistemaArchivos().buscarNodoPorRuta(ruta) == null) {
-                        System.out.println("Nodo no encontrado: " + ruta);
-                        break;
-                    }
+        if (gestor.getSistemaArchivos().buscarNodoPorRuta(ruta) == null) {
+            System.out.println("Nodo no encontrado: " + ruta);
+            break;
+        }
 
-                    System.out.print("Nuevo nombre (sin ruta): ");
-                    String nuevo = sc.nextLine().trim();
+        System.out.print("Nuevo nombre (sin ruta): ");
+        String nuevo = sc.nextLine().trim();
 
-                    if (nuevo.isEmpty()) {
-                        System.out.println("Nombre inválido.");
-                        break;
-                    }
+        if (nuevo.isEmpty()) {
+            System.out.println("Nombre inválido.");
+            break;
+        }
 
-                    boolean ok = gestor.solicitarRenombrar(ruta, nuevo);
-                    if (ok) gestor.ejecutarPaso();
-                    break;
-                }
+        boolean ok = gestor.solicitarRenombrar(ruta, nuevo);
+        if (ok) {
+            System.out.println("Proceso RENOMBRAR encolado. Usa '12) Ejecutar un paso' para procesarlo.");
+        }
+        break;
+    }
 
-                case "12":
-                    gestor.ejecutarPaso();
-                    break;
+    case "12":
+        gestor.ejecutarPaso();
+        break;
 
-                case "13":
-                    System.out.println("\n=== ESTADO ACTUAL ===");
-                    gestor.getSistemaArchivos().imprimirEstructura();
-                    gestor.getSistemaArchivos().imprimirTablaAsignacion();
-                    gestor.getSistemaArchivos().imprimirEstadoDisco();
-                    break;
+    case "13":
+        System.out.println("\n=== ESTADO ACTUAL ===");
+        gestor.getSistemaArchivos().imprimirEstructura();
+        gestor.getSistemaArchivos().imprimirTablaAsignacion();
+        gestor.getSistemaArchivos().imprimirEstadoDisco();
+        break;
 
-                case "14": {
-                    System.out.print("Nombre del archivo donde guardar (ej: estado.txt): ");
-                    String nombre = sc.nextLine().trim();
-                    if (nombre.isEmpty()) {
-                        System.out.println("Nombre inválido.");
-                        break;
-                    }
-                    try {
-                        PersistenciaSistema.guardar(gestor.getSistemaArchivos(), nombre);
-                        System.out.println("Estado guardado en " + nombre);
-                    } catch (IOException e) {
-                        System.out.println("Error al guardar: " + e.getMessage());
-                    }
-                    break;
-                }
+    // 14 y 15 de guardado/carga los dejas como ya los tenías
 
-                case "15": {
-                    System.out.print("Nombre del archivo desde el que cargar (ej: estado.txt): ");
-                    String nombre = sc.nextLine().trim();
-                    if (nombre.isEmpty()) {
-                        System.out.println("Nombre inválido.");
-                        break;
-                    }
-                    try {
-                        SistemaArchivos nuevo = PersistenciaSistema.cargar(nombre);
-                        gestor.setSistemaArchivos(nuevo);
-                        sa = gestor.getSistemaArchivos(); // actualizar referencia local
-                        System.out.println("Estado cargado desde " + nombre);
-                    } catch (IOException e) {
-                        System.out.println("Error al cargar: " + e.getMessage());
-                    }
-                    break;
-                }
+    case "0":
+        salir = true;
+        System.out.println("Saliendo...");
+        break;
 
-                case "0":
-                    salir = true;
-                    System.out.println("Saliendo...");
-                    break;
+    default:
+        System.out.println("Opción inválida.");
+}
 
-                default:
-                    System.out.println("Opción inválida.");
-            }
         }
 
         sc.close();
