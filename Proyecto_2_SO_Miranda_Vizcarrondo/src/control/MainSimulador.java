@@ -81,39 +81,40 @@ public class MainSimulador {
             String option = sc.nextLine().trim();
 
             switch (option) {
-    case "1":
-        gestor.setPlanificador(new PlanificadorFIFO());
-        nombrePlan = "FIFO";
-        System.out.println("Planificador cambiado a FIFO.");
-        break;
+                
+                case "1":
+                    gestor.setPlanificador(new PlanificadorFIFO());
+                    nombrePlan = "FIFO";
+                    System.out.println("Planificador cambiado a FIFO.");
+                break;
 
-    case "2":
-        gestor.setPlanificador(new PlanificadorSSTF());
-        nombrePlan = "SSTF";
-        System.out.println("Planificador cambiado a SSTF.");
-        break;
+                case "2":
+                    gestor.setPlanificador(new PlanificadorSSTF());
+                    nombrePlan = "SSTF";
+                    System.out.println("Planificador cambiado a SSTF.");
+                break;
 
-    case "3":
-        gestor.setPlanificador(new PlanificadorSCAN());
-        nombrePlan = "SCAN";
-        System.out.println("Planificador cambiado a SCAN.");
-        break;
+                case "3":
+                    gestor.setPlanificador(new PlanificadorSCAN());
+                    nombrePlan = "SCAN";
+                    System.out.println("Planificador cambiado a SCAN.");
+                break;
 
-    case "4":
-        gestor.setPlanificador(new PlanificadorCSCAN());
-        nombrePlan = "C-SCAN";
-        System.out.println("Planificador cambiado a C-SCAN.");
-        break;
+                case "4":
+                    gestor.setPlanificador(new PlanificadorCSCAN());
+                    nombrePlan = "C-SCAN";
+                    System.out.println("Planificador cambiado a C-SCAN.");
+                break;
 
-    case "5":
-        gestor.setRolActual(RolUsuario.ADMIN);
-        System.out.println("Rol cambiado a ADMIN.");
-        break;
+                case "5":
+                    gestor.setRolActual(RolUsuario.ADMIN);
+                    System.out.println("Rol cambiado a ADMIN.");
+                break;
 
-    case "6":
-        gestor.setRolActual(RolUsuario.USUARIO);
-        System.out.println("Rol cambiado a USUARIO.");
-        break;
+                case "6":
+                    gestor.setRolActual(RolUsuario.USUARIO);
+                    System.out.println("Rol cambiado a USUARIO.");
+                break;
 
     case "7": {
         System.out.print("Ruta directorio (ej: /root/DocsA): ");
