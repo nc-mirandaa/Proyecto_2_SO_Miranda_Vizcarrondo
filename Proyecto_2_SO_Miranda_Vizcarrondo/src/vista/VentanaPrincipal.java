@@ -20,7 +20,11 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.JOptionPane;
 import java.util.Random;
 import java.awt.BorderLayout;
+
+import javax.swing.JFileChooser;
+import java.io.File;
 import java.io.IOException;
+
 
 
 public class VentanaPrincipal extends javax.swing.JFrame {
@@ -278,32 +282,58 @@ private DefaultMutableTreeNode construirNodoRec(Directorio dir, String rutaActua
 }
 
     private void accGuardar() {
-    String nombre = JOptionPane.showInputDialog(this, "Nombre de archivo para guardar (ej: estado.txt):");
-    if (nombre == null || nombre.trim().isEmpty()) return;
+    JFileChooser fc = new JFileChooser();
+    fc.setDialogTitle("Guardar estado del sistema");
 
-    try {
-        PersistenciaSistema.guardar(gestor.getSistemaArchivos(), nombre.trim());
-        JOptionPane.showMessageDialog(this, "Estado guardado en " + nombre, "OK", JOptionPane.INFORMATION_MESSAGE);
-    } catch (IOException ex) {
-        JOptionPane.showMessageDialog(this, "Error al guardar: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+    int opcion = fc.showSaveDialog(this);
+    if (opcion == JFileChooser.APPROVE_OPTION) {
+        File archivo = fc.getSelectedFile();
+        try {
+            PersistenciaSistema.guardar(gestor.getSistemaArchivos(), archivo.getAbsolutePath());
+            JOptionPane.showMessageDialog(this,
+                    "Estado guardado en:\n" + archivo.getAbsolutePath(),
+                    "OK", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Error al guardar: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }
+
 
 private void accCargar() {
-    String nombre = JOptionPane.showInputDialog(this, "Nombre de archivo desde el que cargar (ej: estado.txt):");
-    if (nombre == null || nombre.trim().isEmpty()) return;
+    JFileChooser fc = new JFileChooser();
+    fc.setDialogTitle("Cargar estado del sistema");
 
-    try {
-        SistemaArchivos nuevo = PersistenciaSistema.cargar(nombre.trim());
-        gestor.setSistemaArchivos(nuevo);
-        modeloTabla.setSistemaArchivos(nuevo);
-        panelDiscoDibujo.setSistemaArchivos(nuevo);
-        refrescarTodo();
-        JOptionPane.showMessageDialog(this, "Estado cargado desde " + nombre, "OK", JOptionPane.INFORMATION_MESSAGE);
-    } catch (IOException ex) {
-        JOptionPane.showMessageDialog(this, "Error al cargar: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+    int opcion = fc.showOpenDialog(this);
+    if (opcion == JFileChooser.APPROVE_OPTION) {
+        File archivo = fc.getSelectedFile();
+
+        try {
+            SistemaArchivos nuevo = PersistenciaSistema.cargar(archivo.getAbsolutePath());
+
+            // Actualizar el gestor con el nuevo FS
+            gestor.setSistemaArchivos(nuevo);
+
+            // Actualizar referencias visuales
+            modeloTabla.setSistemaArchivos(nuevo);
+            panelDiscoDibujo.setSistemaArchivos(nuevo);
+
+            refrescarTodo();
+
+            JOptionPane.showMessageDialog(this,
+                    "Estado cargado desde:\n" + archivo.getAbsolutePath(),
+                    "OK", JOptionPane.INFORMATION_MESSAGE);
+
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this,
+                    "Error al cargar: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }
+
 
 
     private void accEliminar() {
