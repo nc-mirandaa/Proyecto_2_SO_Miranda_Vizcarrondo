@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-private xmlns="http://www.netbeans.org/ns/project-private/1">
+    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
+        <group>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/fs/ListaEnlazada.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/disco/Bloque.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/procesos/EstadoProceso.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/procesos/Proceso.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/procesos/PlanificadorDisco.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/procesos/ColaProcesos.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/procesos/TipoOperacionFS.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/pruebas/MainPruebaProcesos.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/pruebas/MainPruebaRoles.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/fs/SistemaArchivos.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/fs/Archivo.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/fs/Directorio.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/pruebas/MainPruebaFS_Recursivo_Renombrar.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/procesos/PlanificadorCSCAN.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/control/MainSimulador.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/pruebas/MainCambiarRol.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/fs/PersistenciaSistema.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/MainPruebasFS.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/procesos/PlanificadorFIFO.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/pruebas/MainPruebaGestor.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/pruebas/MainPruebaGestorOps.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/procesos/SolicitudES.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/disco/Disco.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/procesos/ColaSolicitudesES.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/procesos/PlanificadorSSTF.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/pruebas/MainPruebaPlanificadores.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/fs/EntradaTablaAsignacion.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/fs/NodoFS.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/procesos/PlanificadorSCAN.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/control/GestorSistema.java</file>
+            <file>file:/C:/Users/Nathaly/OneDrive/Documents/GitHub/Proyecto_2_SO_Miranda_Vizcarrondo/Proyecto_2_SO_Miranda_Vizcarrondo/src/modelo/procesos/RolUsuario.java</file>
+        </group>
+    </open-files>
+</project-private>
