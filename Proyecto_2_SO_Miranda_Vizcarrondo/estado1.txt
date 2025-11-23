@@ -1,0 +1,13 @@
+DISCO;50
+D;/root/DocsA
+F;/root/DocsA/auto_3.bin;4
+F;/root/DocsA/auto_7.txt;5
+F;/root/DocsA/auto_8.bin;7
+F;/root/DocsA/auto_9.log;5
+D;/root/DocsB
+F;/root/DocsB/auto_1.jpg;4
+F;/root/DocsB/auto_2.jpg;3
+F;/root/DocsB/auto_4.txt;3
+F;/root/DocsB/auto_5.jpg;6
+F;/root/DocsB/auto_6.csv;2
+F;/root/DocsB/auto_10.csv;4

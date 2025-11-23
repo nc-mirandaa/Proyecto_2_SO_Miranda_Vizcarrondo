@@ -10,12 +10,18 @@ package vista;
  */
 
 import control.GestorSistema;
-import modelo.fs.*;               // SistemaArchivos, Directorio, NodoFS, Archivo, ListaEnlazada, etc.
+import modelo.fs.*;
+import modelo.procesos.*;           // RolUsuario, planificadores, etc.
+
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
+
+import javax.swing.JOptionPane;
 import java.util.Random;
 import java.awt.BorderLayout;
+import java.io.IOException;
+
 
 public class VentanaPrincipal extends javax.swing.JFrame {
 
@@ -27,83 +33,177 @@ public class VentanaPrincipal extends javax.swing.JFrame {
      * Creates new form VentanaPrincipal
      */
     public VentanaPrincipal() {
-        initComponents();
-        
-        setTitle("Simulador de Sistema de Archivos");
+    initComponents();
 
-        // Crear el backend
-        gestor = new GestorSistema(50);
-        inicializarFSInicial();  // crea DocsA, DocsB y 10 archivos aleatorios
+    setTitle("Simulador de Sistema de Archivos");
 
-        // Conectar árbol al sistema de archivos real
-        treeFS.setModel(construirModeloArbol());
+    // Backend
+    gestor = new GestorSistema(50);
+    inicializarFSInicial();  // crea DocsA, DocsB y 10 archivos aleatorios
 
-        // Conectar tabla de asignación
-        modeloTabla = new ModeloTablaAsignacion(gestor.getSistemaArchivos());
-        tableAsignacion.setModel(modeloTabla);
+    // Árbol
+    treeFS.setModel(construirModeloArbol());
 
-        // Conectar panel de disco (dibujo)
-        panelDisco.setLayout(new BorderLayout());
-        panelDiscoDibujo = new PanelDisco(gestor.getSistemaArchivos());
-        panelDisco.add(panelDiscoDibujo, BorderLayout.CENTER);
+    // Tabla de asignación
+    modeloTabla = new ModeloTablaAsignacion(gestor.getSistemaArchivos());
+    tableAsignacion.setModel(modeloTabla);
 
-        // Ajustar tamaño inicial de los split panes (opcional)
-        splitFS.setDividerLocation(0.3);
-        splitDerechaFS.setDividerLocation(0.5);
-    }
+    // Panel de disco (dibujo)
+    panelDisco.setLayout(new BorderLayout());
+    panelDiscoDibujo = new PanelDisco(gestor.getSistemaArchivos());
+    panelDisco.add(panelDiscoDibujo, BorderLayout.CENTER);
+
+    // Ajuste de divisores
+    splitFS.setDividerLocation(200);       // pixels
+    splitDerechaFS.setDividerLocation(200);
+
+    // === Inicializar combos ===
+    comboRol.removeAllItems();
+    comboRol.addItem("ADMIN");
+    comboRol.addItem("USUARIO");
+    comboRol.setSelectedItem(gestor.getRolActual().name());
+
+
+    comboPlanificador.removeAllItems();
+    comboPlanificador.addItem("FIFO");
+    comboPlanificador.addItem("SSTF");
+    comboPlanificador.addItem("SCAN");
+    comboPlanificador.addItem("C-SCAN");
+    comboPlanificador.setSelectedIndex(0); // FIFO por defecto
+
+    // === Listeners de combos ===
+    comboRol.addActionListener(e -> {
+        String seleccion = (String) comboRol.getSelectedItem();
+        gestor.setRolActual(RolUsuario.valueOf(seleccion));
+        actualizarHabilitadoPorRol();
+    });
+
+    comboPlanificador.addActionListener(e -> {
+        String sel = (String) comboPlanificador.getSelectedItem();
+        if ("FIFO".equals(sel)) {
+            gestor.setPlanificador(new PlanificadorFIFO());
+        } else if ("SSTF".equals(sel)) {
+            gestor.setPlanificador(new PlanificadorSSTF());
+        } else if ("SCAN".equals(sel)) {
+            gestor.setPlanificador(new PlanificadorSCAN());
+        } else if ("C-SCAN".equals(sel)) {
+            gestor.setPlanificador(new PlanificadorCSCAN());
+        }
+    });
+
+    // === Listeners de botones ===
+    btnCrearArchivo.addActionListener(e -> accCrearArchivo());
+    btnCrearDirectorio.addActionListener(e -> accCrearDirectorio());
+    btnEliminar.addActionListener(e -> accEliminar());
+    btnRenombrar.addActionListener(e -> accRenombrar());
+    btnEjecutarPaso.addActionListener(e -> {
+        gestor.ejecutarPaso();
+        refrescarTodo();
+    });
+    btnGuardar.addActionListener(e -> accGuardar());
+    btnCargar.addActionListener(e -> accCargar());
+    btnRefrescar.addActionListener(e -> refrescarTodo());
+
+    // Ajustar qué puede hacer cada rol
+    actualizarHabilitadoPorRol();
+}
+
 
     // ============ MÉTODO: estado inicial del FS ============
     private void inicializarFSInicial() {
-        SistemaArchivos sa = gestor.getSistemaArchivos();
-        Directorio root = sa.getRaiz();
+    SistemaArchivos sa = gestor.getSistemaArchivos();
+    Directorio root = sa.getRaiz();
 
-        sa.crearDirectorio(root, "DocsA");
-        sa.crearDirectorio(root, "DocsB");
+    sa.crearDirectorio(root, "DocsA");
+    sa.crearDirectorio(root, "DocsB");
 
-        String[] extensiones = { ".txt", ".log", ".dat", ".csv", ".jpg", ".bin" };
-        Random rnd = new Random();
+    String[] extensiones = { ".txt", ".log", ".dat", ".csv", ".jpg", ".bin" };
+    Random rnd = new Random();
 
-        for (int i = 1; i <= 10; i++) {
-            String base = "auto_" + i;
-            String ext = extensiones[rnd.nextInt(extensiones.length)];
-            int tam = 1 + rnd.nextInt(8); // 1 a 8 bloques
+    for (int i = 1; i <= 10; i++) {
+        String base = "auto_" + i;
+        String ext = extensiones[rnd.nextInt(extensiones.length)];
+        int tam = 1 + rnd.nextInt(8); // 1 a 8 bloques
 
-            boolean enA = rnd.nextBoolean();
-            String rutaDir = enA ? "/root/DocsA" : "/root/DocsB";
-            String rutaArchivo = rutaDir + "/" + base + ext;
+        boolean enA = rnd.nextBoolean();
+        String rutaDir = enA ? "/root/DocsA" : "/root/DocsB";
+        String rutaArchivo = rutaDir + "/" + base + ext;
 
-            boolean ok = gestor.solicitarCrearArchivo(rutaArchivo, tam);
-            if (ok) gestor.ejecutarPaso();
-        }
+        boolean ok = gestor.solicitarCrearArchivo(rutaArchivo, tam);
+        if (ok) gestor.ejecutarPaso();
     }
+}
+
 
     // ============ MÉTODOS: construir modelo del árbol ============
     private TreeModel construirModeloArbol() {
-        SistemaArchivos sa = gestor.getSistemaArchivos();
-        Directorio raiz = sa.getRaiz();
+    SistemaArchivos sa = gestor.getSistemaArchivos();
+    Directorio raiz = sa.getRaiz();
 
-        DefaultMutableTreeNode nodoRoot = construirNodoRec(raiz, "/root");
-        return new DefaultTreeModel(nodoRoot);
-    }
+    DefaultMutableTreeNode nodoRoot = construirNodoRec(raiz, "/root");
+    return new DefaultTreeModel(nodoRoot);
+}
 
-    private DefaultMutableTreeNode construirNodoRec(Directorio dir, String rutaActual) {
-        DefaultMutableTreeNode nodoDir = new DefaultMutableTreeNode(rutaActual);
+private DefaultMutableTreeNode construirNodoRec(Directorio dir, String rutaActual) {
+    DefaultMutableTreeNode nodoDir = new DefaultMutableTreeNode(rutaActual);
 
-        ListaEnlazada<NodoFS> hijos = dir.getHijos();
-        for (int i = 0; i < hijos.size(); i++) {
-            NodoFS hijo = hijos.get(i);
-            if (hijo.esDirectorio()) {
-                Directorio sub = (Directorio) hijo;
-                String rutaHijo = rutaActual + "/" + sub.getNombre();
-                nodoDir.add(construirNodoRec(sub, rutaHijo));
-            } else {
-                Archivo a = (Archivo) hijo;
-                String rutaArchivo = rutaActual + "/" + a.getNombre();
-                nodoDir.add(new DefaultMutableTreeNode(rutaArchivo));
-            }
+    ListaEnlazada<NodoFS> hijos = dir.getHijos();
+    for (int i = 0; i < hijos.size(); i++) {
+        NodoFS hijo = hijos.get(i);
+        if (hijo.esDirectorio()) {
+            Directorio sub = (Directorio) hijo;
+            String rutaHijo = rutaActual + "/" + sub.getNombre();
+            nodoDir.add(construirNodoRec(sub, rutaHijo));
+        } else {
+            Archivo a = (Archivo) hijo;
+            String rutaArchivo = rutaActual + "/" + a.getNombre();
+            nodoDir.add(new DefaultMutableTreeNode(rutaArchivo));
         }
-        return nodoDir;
     }
+    return nodoDir;
+}
+
+    // Ruta completa del nodo seleccionado en el árbol (archivo o directorio)
+    private String obtenerRutaSeleccionadaNodo() {
+        javax.swing.tree.TreePath path = treeFS.getSelectionPath();
+        if (path == null) return null;
+        Object last = path.getLastPathComponent();
+        DefaultMutableTreeNode nodo = (DefaultMutableTreeNode) last;
+        return nodo.getUserObject().toString();
+    }
+
+    // Ruta de directorio: si hay archivo seleccionado, devuelve la ruta del padre
+    private String obtenerRutaSeleccionadaDirectorio() {
+        String ruta = obtenerRutaSeleccionadaNodo();
+        if (ruta == null) return null;
+
+        NodoFS nodo = gestor.getSistemaArchivos().buscarNodoPorRuta(ruta);
+        if (nodo == null) return null;
+
+        if (nodo.esDirectorio()) {
+            return ruta;
+        } else {
+            Directorio padre = nodo.getPadre();
+            return (padre != null) ? padre.getRutaCompleta() : "/root";
+        }
+    }
+
+    private void actualizarHabilitadoPorRol() {
+        boolean esAdmin = (gestor.getRolActual() == RolUsuario.ADMIN);
+
+        btnCrearArchivo.setEnabled(esAdmin);
+        btnCrearDirectorio.setEnabled(esAdmin);
+        btnEliminar.setEnabled(esAdmin);
+        btnRenombrar.setEnabled(esAdmin);
+
+        // Estos siempre se pueden usar
+        btnEjecutarPaso.setEnabled(true);
+        btnGuardar.setEnabled(true);
+        btnCargar.setEnabled(true);
+        btnRefrescar.setEnabled(true);
+    }
+
+
 
     // ============ MÉTODO: refrescar toda la pestaña de FS ============
     private void refrescarTodo() {
@@ -112,6 +212,131 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         panelDiscoDibujo.repaint();
         
     }
+    
+    private void accCrearArchivo() {
+    String rutaDir = obtenerRutaSeleccionadaDirectorio();
+    if (rutaDir == null) {
+        JOptionPane.showMessageDialog(this, "Selecciona un directorio en el árbol.", "Aviso", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+
+    String nombre = JOptionPane.showInputDialog(this, "Nombre del archivo:");
+    if (nombre == null || nombre.trim().isEmpty()) return;
+
+    String tamStr = JOptionPane.showInputDialog(this, "Tamaño en bloques:");
+    if (tamStr == null) return;
+
+    int tam;
+    try {
+        tam = Integer.parseInt(tamStr.trim());
+    } catch (NumberFormatException ex) {
+        JOptionPane.showMessageDialog(this, "Tamaño inválido.", "Error", JOptionPane.ERROR_MESSAGE);
+        return;
+    }
+
+    String ruta = rutaDir + "/" + nombre.trim();
+    boolean ok = gestor.solicitarCrearArchivo(ruta, tam);
+    if (ok) {
+        
+        refrescarTodo();   // solo refrescamos la vista (opcional incluso)
+    }
+}
+
+    private void accCrearDirectorio() {
+    String rutaDir = obtenerRutaSeleccionadaDirectorio();
+    if (rutaDir == null) {
+        JOptionPane.showMessageDialog(this, "Selecciona un directorio en el árbol.", "Aviso", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+
+    String nombre = JOptionPane.showInputDialog(this, "Nombre del nuevo directorio:");
+    if (nombre == null || nombre.trim().isEmpty()) return;
+
+    String ruta = rutaDir + "/" + nombre.trim();
+    boolean ok = gestor.solicitarCrearDirectorio(ruta);
+    if (ok) {
+        // antes: gestor.ejecutarPaso();
+        refrescarTodo();
+    }
+}
+
+
+    private void accRenombrar() {
+    String ruta = obtenerRutaSeleccionadaNodo();
+    if (ruta == null || "/root".equals(ruta)) {
+        JOptionPane.showMessageDialog(this, "Selecciona un archivo o directorio válido.", "Aviso", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+
+    String nuevo = JOptionPane.showInputDialog(this, "Nuevo nombre (sin ruta):");
+    if (nuevo == null || nuevo.trim().isEmpty()) return;
+
+    boolean ok = gestor.solicitarRenombrar(ruta, nuevo.trim());
+    if (ok) {
+        refrescarTodo();
+    }
+}
+
+    private void accGuardar() {
+    String nombre = JOptionPane.showInputDialog(this, "Nombre de archivo para guardar (ej: estado.txt):");
+    if (nombre == null || nombre.trim().isEmpty()) return;
+
+    try {
+        PersistenciaSistema.guardar(gestor.getSistemaArchivos(), nombre.trim());
+        JOptionPane.showMessageDialog(this, "Estado guardado en " + nombre, "OK", JOptionPane.INFORMATION_MESSAGE);
+    } catch (IOException ex) {
+        JOptionPane.showMessageDialog(this, "Error al guardar: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+    }
+}
+
+private void accCargar() {
+    String nombre = JOptionPane.showInputDialog(this, "Nombre de archivo desde el que cargar (ej: estado.txt):");
+    if (nombre == null || nombre.trim().isEmpty()) return;
+
+    try {
+        SistemaArchivos nuevo = PersistenciaSistema.cargar(nombre.trim());
+        gestor.setSistemaArchivos(nuevo);
+        modeloTabla.setSistemaArchivos(nuevo);
+        panelDiscoDibujo.setSistemaArchivos(nuevo);
+        refrescarTodo();
+        JOptionPane.showMessageDialog(this, "Estado cargado desde " + nombre, "OK", JOptionPane.INFORMATION_MESSAGE);
+    } catch (IOException ex) {
+        JOptionPane.showMessageDialog(this, "Error al cargar: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+    }
+}
+
+
+    private void accEliminar() {
+    String ruta = obtenerRutaSeleccionadaNodo();
+    if (ruta == null || "/root".equals(ruta)) {
+        JOptionPane.showMessageDialog(this, "Selecciona un archivo o directorio válido (no /root).", "Aviso", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+
+    NodoFS nodo = gestor.getSistemaArchivos().buscarNodoPorRuta(ruta);
+    if (nodo == null) {
+        JOptionPane.showMessageDialog(this, "Nodo no encontrado.", "Error", JOptionPane.ERROR_MESSAGE);
+        return;
+    }
+
+    int resp = JOptionPane.showConfirmDialog(this, "¿Seguro que deseas eliminar " + ruta + "?", "Confirmar", JOptionPane.YES_NO_OPTION);
+    if (resp != JOptionPane.YES_OPTION) return;
+
+    boolean ok;
+    if (nodo.esDirectorio()) {
+        ok = gestor.solicitarEliminarDirectorio(ruta);
+    } else {
+        ok = gestor.solicitarEliminarArchivo(ruta);
+    }
+
+    if (ok) {
+        // antes: gestor.ejecutarPaso();
+        refrescarTodo();
+    }
+}
+
+      
+
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -133,6 +358,18 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         tableAsignacion = new javax.swing.JTable();
         panelDisco = new javax.swing.JPanel();
         panelControles = new javax.swing.JPanel();
+        jLabel3 = new javax.swing.JLabel();
+        comboRol = new javax.swing.JComboBox<>();
+        jLabel1 = new javax.swing.JLabel();
+        comboPlanificador = new javax.swing.JComboBox<>();
+        btnCrearArchivo = new javax.swing.JButton();
+        btnCrearDirectorio = new javax.swing.JButton();
+        btnEliminar = new javax.swing.JButton();
+        btnRenombrar = new javax.swing.JButton();
+        btnEjecutarPaso = new javax.swing.JButton();
+        btnGuardar = new javax.swing.JButton();
+        btnCargar = new javax.swing.JButton();
+        btnRefrescar = new javax.swing.JButton();
         panelCola = new javax.swing.JPanel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -164,7 +401,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         panelDisco.setLayout(panelDiscoLayout);
         panelDiscoLayout.setHorizontalGroup(
             panelDiscoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 451, Short.MAX_VALUE)
+            .addGap(0, 668, Short.MAX_VALUE)
         );
         panelDiscoLayout.setVerticalGroup(
             panelDiscoLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -178,6 +415,45 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         panelFS.add(splitFS, java.awt.BorderLayout.CENTER);
 
         tabbedPrincipal.addTab("Sistema de Archivos", panelFS);
+
+        panelControles.setLayout(new java.awt.GridLayout(3, 4));
+
+        jLabel3.setText("Rol: ");
+        panelControles.add(jLabel3);
+
+        comboRol.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        panelControles.add(comboRol);
+
+        jLabel1.setText("Planificador: ");
+        panelControles.add(jLabel1);
+
+        comboPlanificador.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        panelControles.add(comboPlanificador);
+
+        btnCrearArchivo.setText("Crear Archivo");
+        panelControles.add(btnCrearArchivo);
+
+        btnCrearDirectorio.setText("Crear Directorio");
+        panelControles.add(btnCrearDirectorio);
+
+        btnEliminar.setText("Eliminar");
+        panelControles.add(btnEliminar);
+
+        btnRenombrar.setText("Renombrar");
+        panelControles.add(btnRenombrar);
+
+        btnEjecutarPaso.setText("Ejecutar Paso");
+        panelControles.add(btnEjecutarPaso);
+
+        btnGuardar.setText("Guardar Estado");
+        panelControles.add(btnGuardar);
+
+        btnCargar.setText("Cargar Estado");
+        panelControles.add(btnCargar);
+
+        btnRefrescar.setText("Refrescar");
+        panelControles.add(btnRefrescar);
+
         tabbedPrincipal.addTab("Controles", panelControles);
 
         panelCola.setLayout(new java.awt.BorderLayout());
@@ -187,7 +463,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(tabbedPrincipal, javax.swing.GroupLayout.DEFAULT_SIZE, 487, Short.MAX_VALUE)
+            .addComponent(tabbedPrincipal, javax.swing.GroupLayout.DEFAULT_SIZE, 704, Short.MAX_VALUE)
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -244,6 +520,18 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton btnCargar;
+    private javax.swing.JButton btnCrearArchivo;
+    private javax.swing.JButton btnCrearDirectorio;
+    private javax.swing.JButton btnEjecutarPaso;
+    private javax.swing.JButton btnEliminar;
+    private javax.swing.JButton btnGuardar;
+    private javax.swing.JButton btnRefrescar;
+    private javax.swing.JButton btnRenombrar;
+    private javax.swing.JComboBox<String> comboPlanificador;
+    private javax.swing.JComboBox<String> comboRol;
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel3;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel panelCola;
     private javax.swing.JPanel panelControles;
