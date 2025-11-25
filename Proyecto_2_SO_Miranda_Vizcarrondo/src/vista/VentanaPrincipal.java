@@ -11,7 +11,8 @@ package vista;
 
 import control.GestorSistema;
 import modelo.fs.*;
-import modelo.procesos.*;           // RolUsuario, planificadores, etc.
+import vista.ModeloColaProcesos;
+import modelo.procesos.*;// RolUsuario, planificadores, etc.
 
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -32,6 +33,7 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     private GestorSistema gestor;
     private ModeloTablaAsignacion modeloTabla;
     private PanelDisco panelDiscoDibujo;
+    private ModeloColaProcesos modeloColaProcesos;
     
     /**
      * Creates new form VentanaPrincipal
@@ -56,6 +58,9 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     panelDisco.setLayout(new BorderLayout());
     panelDiscoDibujo = new PanelDisco(gestor.getSistemaArchivos());
     panelDisco.add(panelDiscoDibujo, BorderLayout.CENTER);
+    
+    modeloColaProcesos = new ModeloColaProcesos(gestor);
+    tableCola.setModel(modeloColaProcesos);
 
     // Ajuste de divisores
     splitFS.setDividerLocation(200);       // pixels
@@ -211,11 +216,15 @@ private DefaultMutableTreeNode construirNodoRec(Directorio dir, String rutaActua
 
     // ============ MÉTODO: refrescar toda la pestaña de FS ============
     private void refrescarTodo() {
-        treeFS.setModel(construirModeloArbol());
-        modeloTabla.fireTableDataChanged();
-        panelDiscoDibujo.repaint();
-        
+    treeFS.setModel(construirModeloArbol());
+    modeloTabla.fireTableDataChanged();
+    panelDiscoDibujo.repaint();
+
+    if (modeloColaProcesos != null) {
+        modeloColaProcesos.refrescar();
     }
+}
+
     
     private void accCrearArchivo() {
     String rutaDir = obtenerRutaSeleccionadaDirectorio();
@@ -401,6 +410,8 @@ private void accCargar() {
         btnCargar = new javax.swing.JButton();
         btnRefrescar = new javax.swing.JButton();
         panelCola = new javax.swing.JPanel();
+        scrollCola = new javax.swing.JScrollPane();
+        tableCola = new javax.swing.JTable();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -487,6 +498,22 @@ private void accCargar() {
         tabbedPrincipal.addTab("Controles", panelControles);
 
         panelCola.setLayout(new java.awt.BorderLayout());
+
+        tableCola.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Title 1", "Title 2", "Title 3", "Title 4"
+            }
+        ));
+        scrollCola.setViewportView(tableCola);
+
+        panelCola.add(scrollCola, java.awt.BorderLayout.CENTER);
+
         tabbedPrincipal.addTab("Cola de procesos", panelCola);
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
@@ -568,11 +595,13 @@ private void accCargar() {
     private javax.swing.JPanel panelDisco;
     private javax.swing.JPanel panelFS;
     private javax.swing.JScrollPane scrollArbol;
+    private javax.swing.JScrollPane scrollCola;
     private javax.swing.JScrollPane scrollTablaAsignacion;
     private javax.swing.JSplitPane splitDerechaFS;
     private javax.swing.JSplitPane splitFS;
     private javax.swing.JTabbedPane tabbedPrincipal;
     private javax.swing.JTable tableAsignacion;
+    private javax.swing.JTable tableCola;
     private javax.swing.JTree treeFS;
     // End of variables declaration//GEN-END:variables
 }
