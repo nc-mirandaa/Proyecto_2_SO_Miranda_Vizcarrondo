@@ -6,6 +6,7 @@ package control;
 
 import modelo.fs.*;
 import modelo.procesos.*;
+import modelo.fs.ListaEnlazada;
 
 /**
  * Orquesta procesos, solicitudes de E/S, planificación de disco
@@ -35,6 +36,10 @@ public class GestorSistema {
 
     public void setSistemaArchivos(SistemaArchivos sistemaArchivos) {
     this.sistemaArchivos = sistemaArchivos;
+    }
+    
+    public ListaEnlazada<Proceso> getProcesosEnCola() {
+    return colaProcesos.getLista();
     }
     
     // === Roles ===
