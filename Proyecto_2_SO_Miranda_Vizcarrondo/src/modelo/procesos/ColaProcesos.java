@@ -73,6 +73,10 @@ public class ColaProcesos {
     public ListaEnlazada<Proceso> getLista() {
         return lista;
     }
+    
+    public void eliminar(Proceso p) {
+    lista.eliminar(p);
+}
 }
 
 

@@ -25,7 +25,9 @@ public class GestorSistema {
     
     // Último error producido al ejecutar una operación de FS
     private String ultimoError;
-
+    
+    // Generador aleatorio reproducible
+    private java.util.Random rng = new java.util.Random(12345);
 
     public GestorSistema(int bloquesDisco) {
         this.sistemaArchivos = new SistemaArchivos(bloquesDisco);
@@ -118,42 +120,73 @@ public class GestorSistema {
         return true;
     }
 
+    
+    private int calcularPosicionSolicitud(Proceso p) {
+        int bloques = sistemaArchivos.getDisco().getCantidadBloques();
+    // Posición pseudo-aleatoria pero determinista según el id del proceso
+        int base = p.getId() * 13 + 7;
+        int pos = base % bloques;
+        if (pos < 0) pos += bloques;
+        return pos;
+    }
+
+    
     // ======================== Simulación de un paso ========================
 
     public void ejecutarPaso() {
-        
-        // limpiar error anterior
+
         ultimoError = null;
-        
+
         if (colaProcesos.estaVacia()) {
             System.out.println("No hay procesos en la cola.");
             return;
         }
-        Proceso p = colaProcesos.desencolar();
-        if (p == null) return;
 
-        System.out.println("\n=== Ejecutando " + p + " ===");
-        p.setEstado(EstadoProceso.LISTO);
+    // === Construir cola de solicitudes REALISTA ===
+        ColaSolicitudesES colaPlan = new ColaSolicitudesES();
 
-        // Generar solicitud de E/S (simple, a pos=0 por ahora)
-        colaES.encolar(new SolicitudES(p, 0));
+        ListaEnlazada<Proceso> lista = colaProcesos.getLista();
 
-        // Elegir con el planificador
-        SolicitudES siguiente = planificador.seleccionarSiguiente(colaES, posicionCabezal);
+        for (int i = 0; i < lista.size(); i++) {
+            Proceso q = lista.get(i);
+
+        // Si este proceso NO tiene posición asignada, se la asigno una vez.
+            if (q.getPosicionES() == -1) {
+                int pos = calcularPosicionSolicitud(q);
+            q.setPosicionES(pos);
+            }
+
+            colaPlan.encolar(new SolicitudES(q, q.getPosicionES()));
+        }
+
+    // === Dejar que el planificador elija correctamente ===
+        SolicitudES siguiente = planificador.seleccionarSiguiente(colaPlan, posicionCabezal);
+
         if (siguiente == null) {
-            System.out.println("No hay solicitudes de E/S.");
+            System.out.println("No hay solicitudes de E/S");
             return;
         }
+
+        Proceso p = siguiente.getProceso();
+
+        System.out.println("\n=== Ejecutando " + p + " ===");
         System.out.println("Planificador seleccionó: " + siguiente);
-        p.setEstado(EstadoProceso.EJECUTANDO);
+
+    // ACTUALIZAR EL CABEZAL ANTES DE EJECUTAR
         posicionCabezal = siguiente.getPosicion();
 
-        // Ejecutar operación real
+        p.setEstado(EstadoProceso.EJECUTANDO);
+
         ejecutarOperacionFS(p);
 
         p.setEstado(EstadoProceso.TERMINADO);
+
+    // Eliminar el proceso de la cola
+        colaProcesos.eliminar(p);
+
         System.out.println("Proceso " + p.getId() + " TERMINADO.");
     }
+
 
     // ======================== Ejecución de FS ========================
 

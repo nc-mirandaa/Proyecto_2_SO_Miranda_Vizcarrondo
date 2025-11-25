@@ -22,6 +22,16 @@ public class Proceso {
 
     // NUEVO: para RENOMBRAR (nombre destino)
     private String nuevoNombre;    // null si no aplica
+    
+    private int posicionES = -1;
+
+    public int getPosicionES() {
+        return posicionES;
+    }
+
+    public void setPosicionES(int pos) {
+        this.posicionES = pos;
+    }
 
     public Proceso(TipoOperacionFS tipoOperacion, String rutaObjetivo, int tamanoEnBloques) {
         this.id = contadorIds++;
