@@ -22,6 +22,10 @@ public class GestorSistema {
 
     // === ROLES ===
     private RolUsuario rolActual = RolUsuario.ADMIN;
+    
+    // Último error producido al ejecutar una operación de FS
+    private String ultimoError;
+
 
     public GestorSistema(int bloquesDisco) {
         this.sistemaArchivos = new SistemaArchivos(bloquesDisco);
@@ -37,6 +41,10 @@ public class GestorSistema {
     public void setSistemaArchivos(SistemaArchivos sistemaArchivos) {
     this.sistemaArchivos = sistemaArchivos;
     }
+    
+    public String getUltimoError() {
+    return ultimoError;
+}
     
     public ListaEnlazada<Proceso> getProcesosEnCola() {
     return colaProcesos.getLista();
@@ -113,6 +121,10 @@ public class GestorSistema {
     // ======================== Simulación de un paso ========================
 
     public void ejecutarPaso() {
+        
+        // limpiar error anterior
+        ultimoError = null;
+        
         if (colaProcesos.estaVacia()) {
             System.out.println("No hay procesos en la cola.");
             return;
@@ -163,31 +175,42 @@ public class GestorSistema {
     }
 
     private void ejecutarCrearArchivo(Proceso p) {
-        String ruta = p.getRutaObjetivo();
-        int tamBloques = p.getTamanoEnBloques();
-        String rutaDir = obtenerRutaDirectorio(ruta);
-        String nombreArchivo = obtenerNombreFinal(ruta);
+    String ruta = p.getRutaObjetivo();
+    int tamBloques = p.getTamanoEnBloques();
+    String rutaDir = obtenerRutaDirectorio(ruta);
+    String nombreArchivo = obtenerNombreFinal(ruta);
 
-        Directorio dirPadre = sistemaArchivos.buscarDirectorioPorRuta(rutaDir);
-        if (dirPadre == null) {
-            System.out.println("Directorio padre no encontrado: " + rutaDir);
-            return;
-        }
-
-        if (dirPadre.buscarHijoPorNombre(nombreArchivo) != null) {
-            System.out.println("Ya existe un nodo con ese nombre en: " + rutaDir);
-            return;
-        }
-
-        Archivo archivo = sistemaArchivos.crearArchivo(dirPadre, nombreArchivo, tamBloques);
-        if (archivo == null) {
-            System.out.println("No se pudo crear el archivo (sin espacio).");
-        } else {
-            System.out.println("Archivo creado: " + archivo.getNombre() +
-                    " en " + dirPadre.getRutaCompleta() +
-                    " (primerBloque=" + archivo.getPrimerBloque() + ")");
-        }
+    Directorio dirPadre = sistemaArchivos.buscarDirectorioPorRuta(rutaDir);
+    if (dirPadre == null) {
+        String msg = "Directorio padre no encontrado: " + rutaDir;
+        System.out.println(msg);
+        ultimoError = msg;
+        return;
     }
+
+    if (dirPadre.buscarHijoPorNombre(nombreArchivo) != null) {
+        String msg = "Ya existe un nodo con ese nombre en: " + rutaDir;
+        System.out.println(msg);
+        ultimoError = msg;
+        return;
+    }
+
+    Archivo archivo = sistemaArchivos.crearArchivo(dirPadre, nombreArchivo, tamBloques);
+
+    // ⭐⭐ AQUI ESTA LA PARTE 1.4 ⭐⭐  
+    if (archivo == null) {
+        String msg = "No se pudo crear el archivo '" + nombreArchivo +
+                "' en " + rutaDir +
+                " (no hay espacio suficiente en el disco).";
+        System.out.println(msg);
+        ultimoError = msg;   // ← ESTA ES LA CLAVE PARA MOSTRARLO EN LA GUI
+    } else {
+        System.out.println("Archivo creado: " + archivo.getNombre() +
+                " en " + dirPadre.getRutaCompleta() +
+                " (primerBloque=" + archivo.getPrimerBloque() + ")");
+    }
+}
+
 
     private void ejecutarEliminarArchivo(Proceso p) {
         String ruta = p.getRutaObjetivo();

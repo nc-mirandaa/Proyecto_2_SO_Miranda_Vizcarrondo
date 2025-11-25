@@ -11,7 +11,6 @@ package vista;
 
 import control.GestorSistema;
 import modelo.fs.*;
-import vista.ModeloColaProcesos;
 import modelo.procesos.*;// RolUsuario, planificadores, etc.
 
 import javax.swing.tree.TreeModel;
@@ -108,6 +107,16 @@ public class VentanaPrincipal extends javax.swing.JFrame {
     btnEjecutarPaso.addActionListener(e -> {
         gestor.ejecutarPaso();
         refrescarTodo();
+        
+        String error = gestor.getUltimoError();
+        if (error != null) {
+            javax.swing.JOptionPane.showMessageDialog(
+                this,
+                error,
+                "Error al ejecutar proceso",
+                javax.swing.JOptionPane.ERROR_MESSAGE
+            );
+        }  
     });
     btnGuardar.addActionListener(e -> accGuardar());
     btnCargar.addActionListener(e -> accCargar());
