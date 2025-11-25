@@ -135,79 +135,105 @@ public class GestorSistema {
 
     public void ejecutarPaso() {
 
-        ultimoError = null;
+    // limpiar error anterior
+    ultimoError = null;
 
-        if (colaProcesos.estaVacia()) {
-            System.out.println("No hay procesos en la cola.");
-            return;
-        }
-
-    // === Construir cola de solicitudes REALISTA ===
-        ColaSolicitudesES colaPlan = new ColaSolicitudesES();
-
-        ListaEnlazada<Proceso> lista = colaProcesos.getLista();
-
-        for (int i = 0; i < lista.size(); i++) {
-            Proceso q = lista.get(i);
-
-        // Si este proceso NO tiene posición asignada, se la asigno una vez.
-            if (q.getPosicionES() == -1) {
-                int pos = calcularPosicionSolicitud(q);
-            q.setPosicionES(pos);
-            }
-
-            colaPlan.encolar(new SolicitudES(q, q.getPosicionES()));
-        }
-
-    // === Dejar que el planificador elija correctamente ===
-        SolicitudES siguiente = planificador.seleccionarSiguiente(colaPlan, posicionCabezal);
-
-        if (siguiente == null) {
-            System.out.println("No hay solicitudes de E/S");
-            return;
-        }
-
-        Proceso p = siguiente.getProceso();
-
-        System.out.println("\n=== Ejecutando " + p + " ===");
-        System.out.println("Planificador seleccionó: " + siguiente);
-
-    // ACTUALIZAR EL CABEZAL ANTES DE EJECUTAR
-        posicionCabezal = siguiente.getPosicion();
-
-        p.setEstado(EstadoProceso.EJECUTANDO);
-
-        ejecutarOperacionFS(p);
-
-        p.setEstado(EstadoProceso.TERMINADO);
-
-    // Eliminar el proceso de la cola
-        colaProcesos.eliminar(p);
-
-        System.out.println("Proceso " + p.getId() + " TERMINADO.");
+    if (colaProcesos.estaVacia()) {
+        System.out.println("No hay procesos en la cola.");
+        return;
     }
 
+    // Construir cola de solicitudes de E/S con TODOS los procesos pendientes
+    ColaSolicitudesES colaPlan = new ColaSolicitudesES();
+    ListaEnlazada<Proceso> lista = colaProcesos.getLista();
+
+    for (int i = 0; i < lista.size(); i++) {
+        Proceso q = lista.get(i);
+
+        // ⚠️ Si está BLOQUEADO, por ahora no lo planificamos
+        if (q.getEstado() == EstadoProceso.BLOQUEADO) {
+            continue;
+        }
+        
+        if (q.getPosicionES() == -1) {
+            int pos = calcularPosicionSolicitud(q);
+            q.setPosicionES(pos);
+        }
+
+        colaPlan.encolar(new SolicitudES(q, q.getPosicionES()));
+    }
+
+    // Dejar que el planificador elija la siguiente solicitud
+    SolicitudES siguiente = planificador.seleccionarSiguiente(colaPlan, posicionCabezal);
+    if (siguiente == null) {
+        System.out.println("No hay solicitudes de E/S.");
+        return;
+    }
+
+    Proceso p = siguiente.getProceso();
+
+    System.out.println("\n=== Ejecutando " + p + " ===");
+    p.setEstado(EstadoProceso.LISTO);
+    p.setEstado(EstadoProceso.EJECUTANDO);
+
+    posicionCabezal = siguiente.getPosicion();
+    System.out.println("Planificador seleccionó: " + siguiente);
+
+    // Ejecutar operación real y ver si se completó o quedó bloqueada
+    boolean completado = ejecutarOperacionFS(p);
+
+    if (completado) {
+        p.setEstado(EstadoProceso.TERMINADO);
+        colaProcesos.eliminar(p);
+        System.out.println("Proceso " + p.getId() + " TERMINADO.");
+    } else {
+        // No se completó (ej. falta de espacio); lo dejamos BLOQUEADO en la cola
+        p.setEstado(EstadoProceso.BLOQUEADO);
+        System.out.println("Proceso " + p.getId() + " queda BLOQUEADO (reintento futuro).");
+    }
+}
+
+
+    private void reactivarBloqueadosPorEspacio() {
+        ListaEnlazada<Proceso> lista = colaProcesos.getLista();
+        for (int i = 0; i < lista.size(); i++) {
+            Proceso q = lista.get(i);
+            if (q.getEstado() == EstadoProceso.BLOQUEADO &&
+                q.getTipoOperacion() == TipoOperacionFS.CREAR_ARCHIVO) {
+
+            // Lo pasamos a LISTO para que vuelva a intentarse en futuros pasos
+                q.setEstado(EstadoProceso.LISTO);
+                System.out.println("Reactivando proceso bloqueado por espacio: P" + q.getId());
+            }
+        }
+    }
 
     // ======================== Ejecución de FS ========================
 
-    private void ejecutarOperacionFS(Proceso p) {
-        switch (p.getTipoOperacion()) {
-            case CREAR_ARCHIVO:
-                ejecutarCrearArchivo(p); break;
-            case ELIMINAR_ARCHIVO:
-                ejecutarEliminarArchivo(p); break;
-            case CREAR_DIRECTORIO:
-                ejecutarCrearDirectorio(p); break;
-            case ELIMINAR_DIRECTORIO:
-                ejecutarEliminarDirectorio(p); break;
-            case RENOMBRAR:
-                ejecutarRenombrar(p); break;
-            default:
-                System.out.println("Operación no implementada: " + p.getTipoOperacion());
-        }
+    private boolean ejecutarOperacionFS(Proceso p) {
+    switch (p.getTipoOperacion()) {
+        case CREAR_ARCHIVO:
+            return ejecutarCrearArchivo(p);
+        case ELIMINAR_ARCHIVO:
+            ejecutarEliminarArchivo(p);
+            return true;
+        case CREAR_DIRECTORIO:
+            ejecutarCrearDirectorio(p);
+            return true;
+        case ELIMINAR_DIRECTORIO:
+            ejecutarEliminarDirectorio(p);
+            return true;
+        case RENOMBRAR:
+            ejecutarRenombrar(p);
+            return true;
+        default:
+            System.out.println("Operación no implementada: " + p.getTipoOperacion());
+            return true;
     }
+}
 
-    private void ejecutarCrearArchivo(Proceso p) {
+
+    private boolean ejecutarCrearArchivo(Proceso p) {
     String ruta = p.getRutaObjetivo();
     int tamBloques = p.getTamanoEnBloques();
     String rutaDir = obtenerRutaDirectorio(ruta);
@@ -218,31 +244,39 @@ public class GestorSistema {
         String msg = "Directorio padre no encontrado: " + rutaDir;
         System.out.println(msg);
         ultimoError = msg;
-        return;
+        // Error lógico: no tiene sentido reintentar
+        return true;
     }
 
     if (dirPadre.buscarHijoPorNombre(nombreArchivo) != null) {
         String msg = "Ya existe un nodo con ese nombre en: " + rutaDir;
         System.out.println(msg);
         ultimoError = msg;
-        return;
+        // Ya existe: tampoco tiene sentido reintentar
+        return true;
     }
 
     Archivo archivo = sistemaArchivos.crearArchivo(dirPadre, nombreArchivo, tamBloques);
 
-    // ⭐⭐ AQUI ESTA LA PARTE 1.4 ⭐⭐  
     if (archivo == null) {
-        String msg = "No se pudo crear el archivo '" + nombreArchivo +
+        // AQUÍ ES EL CASO IMPORTANTE: NO HAY ESPACIO
+        String msg = "No hay espacio suficiente en el disco para el archivo " + nombreArchivo;
+        System.out.println(msg);
+        ultimoError = "No se pudo crear el archivo '" + nombreArchivo +
                 "' en " + rutaDir +
                 " (no hay espacio suficiente en el disco).";
-        System.out.println(msg);
-        ultimoError = msg;   // ← ESTA ES LA CLAVE PARA MOSTRARLO EN LA GUI
+
+        System.out.println("Proceso " + p.getId() + " queda BLOQUEADO esperando espacio en disco.");
+        // Devuelvo false para que ejecutarPaso NO lo elimine de la cola
+        return false;
     } else {
         System.out.println("Archivo creado: " + archivo.getNombre() +
                 " en " + dirPadre.getRutaCompleta() +
                 " (primerBloque=" + archivo.getPrimerBloque() + ")");
+        return true;
     }
 }
+
 
 
     private void ejecutarEliminarArchivo(Proceso p) {
@@ -263,8 +297,14 @@ public class GestorSistema {
         }
 
         boolean ok = sistemaArchivos.eliminarArchivo(dirPadre, (Archivo) nodo);
-        System.out.println(ok ? "Archivo eliminado: " + ruta
-                              : "No se pudo eliminar el archivo: " + ruta);
+        if (ok) {
+            System.out.println("Archivo eliminado: " + ruta);
+        // 🔁 Puede que ahora haya espacio: reactivar bloqueados
+            reactivarBloqueadosPorEspacio();
+        } else {
+            System.out.println("No se pudo eliminar el archivo: " + ruta);
+        }
+
     }
 
     private void ejecutarCrearDirectorio(Proceso p) {
@@ -310,8 +350,14 @@ public class GestorSistema {
         }
 
         boolean ok = sistemaArchivos.eliminarDirectorioRecursivo(dirPadre, (Directorio) nodo);
-        System.out.println(ok ? "Directorio eliminado: " + rutaDir
-                              : "No se pudo eliminar el directorio: " + rutaDir);
+        if (ok) {
+            System.out.println("Directorio eliminado: " + rutaDir);
+        // 🔁 Puede haber espacio nuevo en disco
+            reactivarBloqueadosPorEspacio();
+        } else {
+            System.out.println("No se pudo eliminar el directorio: " + rutaDir);
+        }
+
     }
 
     private void ejecutarRenombrar(Proceso p) {
